@@ -48,6 +48,7 @@
   <!-- Consortium dependencies. -->
   <exec_depend>linear_feedback_controller</exec_depend>
   <exec_depend>linear_feedback_controller_msgs</exec_depend>
+  <exec_depend>agimus_description</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

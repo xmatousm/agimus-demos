@@ -187,7 +187,7 @@ def launch_setup(
         "joint_limits_path": joint_limits_file,
     }
     robot_description_file_substitution = path_join(
-            "urdf", arm_id_str, f"{arm_id_str}.xacro", pkg="lbr_description")
+            "urdf", f"{arm_id_str}.xacro", pkg="agimus_description")
 
     robot_description = parameter_value_xacro(
         robot_description_file_substitution, xacro_args)
