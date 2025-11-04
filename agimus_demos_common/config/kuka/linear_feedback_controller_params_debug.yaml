@@ -1,0 +1,110 @@
+---
+joint_state_estimator:
+  ros__parameters:
+    type: linear_feedback_controller/JointStateEstimator
+    state_interfaces:
+    - lbr_A1/position
+    - lbr_A2/position
+    - lbr_A3/position
+    - lbr_A4/position
+    - lbr_A5/position
+    - lbr_A6/position
+    - lbr_A7/position
+    - lbr_A1/velocity
+    - lbr_A2/velocity
+    - lbr_A3/velocity
+    - lbr_A4/velocity
+    - lbr_A5/velocity
+    - lbr_A6/velocity
+    - lbr_A7/velocity
+    - lbr_A1/effort
+    - lbr_A2/effort
+    - lbr_A3/effort
+    - lbr_A4/effort
+    - lbr_A5/effort
+    - lbr_A6/effort
+    - lbr_A7/effort
+    command_interfaces:
+    - linear_feedback_controller/lbr_A1/position
+    - linear_feedback_controller/lbr_A2/position
+    - linear_feedback_controller/lbr_A3/position
+    - linear_feedback_controller/lbr_A4/position
+    - linear_feedback_controller/lbr_A5/position
+    - linear_feedback_controller/lbr_A6/position
+    - linear_feedback_controller/lbr_A7/position
+    - linear_feedback_controller/lbr_A1/velocity
+    - linear_feedback_controller/lbr_A2/velocity
+    - linear_feedback_controller/lbr_A3/velocity
+    - linear_feedback_controller/lbr_A4/velocity
+    - linear_feedback_controller/lbr_A5/velocity
+    - linear_feedback_controller/lbr_A6/velocity
+    - linear_feedback_controller/lbr_A7/velocity
+    - linear_feedback_controller/lbr_A1/effort
+    - linear_feedback_controller/lbr_A2/effort
+    - linear_feedback_controller/lbr_A3/effort
+    - linear_feedback_controller/lbr_A4/effort
+    - linear_feedback_controller/lbr_A5/effort
+    - linear_feedback_controller/lbr_A6/effort
+    - linear_feedback_controller/lbr_A7/effort
+
+linear_feedback_controller:
+  ros__parameters:
+    type: linear_feedback_controller/LinearFeedbackController
+    moving_joint_names:
+    - lbr_A1
+    - lbr_A2
+    - lbr_A3
+    - lbr_A4
+    - lbr_A5
+    - lbr_A6
+    - lbr_A7
+    lbr_A1:
+      p: 60.0
+      d: 15.0
+    lbr_A2:
+      p: 260.0
+      d: 30.0
+    lbr_A3:
+      p: 60.0
+      d: 5.0
+    lbr_A4:
+      p: 260.0
+      d: 2.0
+    lbr_A5:
+      p: 20.0
+      d: 2.0
+    lbr_A6:
+      p: 10.0
+      d: 2.0
+    lbr_A7:
+      p: 5.0
+      d: 1.0
+    chainable_controller:
+      command_interfaces0:
+      - lbr_A1/effort
+      - lbr_A2/effort
+      - lbr_A3/effort
+      - lbr_A4/effort
+      - lbr_A5/effort
+      - lbr_A6/effort
+      - lbr_A7/effort
+      command_interfaces:
+      - effort_passthrough_state_publisher/lbr_A1/effort
+      - effort_passthrough_state_publisher/lbr_A2/effort
+      - effort_passthrough_state_publisher/lbr_A3/effort
+      - effort_passthrough_state_publisher/lbr_A4/effort
+      - effort_passthrough_state_publisher/lbr_A5/effort
+      - effort_passthrough_state_publisher/lbr_A6/effort
+      - effort_passthrough_state_publisher/lbr_A7/effort
+      reference_prefix: ''
+    joint_velocity_filter_coefficient: 0.9
+    pd_to_lf_transition_duration: 0.1
+    remove_gravity_compensation_effort: true
+    robot_has_free_flyer: false
+
+effort_passthrough_state_publisher:
+  ros__parameters:
+    type: xmm_controllers/EffortPassThroughStatePublisher
+    joint_prefix: lbr_A
+    report_period: 0.0
+

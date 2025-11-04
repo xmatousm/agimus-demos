@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pandas">
+    <xacro:include filename="$(find franka_description)/robots/common/utils.xacro" />
+
+    <material name="grey">
+        <color rgba=".5 .5 .5 1" />
+    </material>
+    <link name="obstacle1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.6" />
+            <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+                iyy="0.001" iyz="0.0"
+                izz="0.001" />
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0.0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.597 0.397 0.001" />
+            </geometry>
+            <color name="grey" />
+        </visual>
+
+    <collision>
+      <origin xyz="4.5 0.0 0.15" />
+      <geometry>
+        <cylinder length="0.3" radius="0.1" />
+      </geometry>
+    </collision>
+
+     <!-- Note: these two are deleted in collision model update (robot_model.py)-->
+     <collision>
+      <origin xyz="4.5 0.0 0.3" />
+      <geometry>
+        <sphere radius="0.1" />
+      </geometry>
+    </collision>
+
+    <collision>
+      <origin xyz="4.5 0.0 0.0" />
+      <geometry>
+        <sphere radius="0.1" />
+      </geometry>
+    </collision>
+
+    </link>
+</robot>

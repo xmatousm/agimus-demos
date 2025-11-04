@@ -1,0 +1,37 @@
+# the joint position limits are set 2 degrees short of real hw limits to avoid
+# exceeding them dynamically during a fast motion
+A1:
+  lower: -168
+  upper: 168
+  velocity: 90
+  effort: 135
+A2:
+  lower: -118
+  upper: 118
+  velocity: 90
+  effort: 150
+A3:
+  lower: -168
+  upper: 168
+  velocity: 90
+  effort: 125
+A4:
+  lower: -118
+  upper: 118
+  velocity: 80
+  effort: 120
+A5:
+  lower: -168
+  upper: 168
+  velocity: 150
+  effort: 120
+A6:
+  lower: -118
+  upper: 118
+  velocity: 180
+  effort: 120
+A7:
+  lower: -173
+  upper: 173
+  velocity: 180
+  effort: 120

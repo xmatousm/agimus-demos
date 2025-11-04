@@ -10,6 +10,11 @@
   <!-- Common -->
   <exec_depend>agimus_demos_common</exec_depend>
 
+  <!-- Kuka -->
+  <exec_depend>agimus_demo_00_kuka_controller</exec_depend>
+  <exec_depend>agimus_demo_01_lfc_alone_kuka</exec_depend>
+  <exec_depend>agimus_demo_02_simple_pd_plus_kuka</exec_depend>
+  <exec_depend>agimus_demo_03_mpc_dummy_traj_kuka</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

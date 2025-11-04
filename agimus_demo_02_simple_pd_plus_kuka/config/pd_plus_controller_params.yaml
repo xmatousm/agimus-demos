@@ -1,0 +1,17 @@
+---
+pd_plus_controller:
+  ros__parameters:
+    moving_joint_names:
+    - lbr_A1
+    - lbr_A2
+    - lbr_A3
+    - lbr_A4
+    - lbr_A5
+    - lbr_A6
+    - lbr_A7
+    amplitudes: [0.1, 0.1, 0.0, 0.1, 0.0, 0.0, 0.0]
+    periods: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+    p_gains: [60.0, 260.0, 60.0, 260.0, 20.0, 10.0, 5.0]
+    d_gains: [15.0, 15.0, 15.0, 15.0, 10.0, 10.0, 10.0]
+    controller_period: 0.01
+    with_ricatti_gains: true
