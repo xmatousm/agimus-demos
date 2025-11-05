@@ -121,7 +121,7 @@ def launch_setup(
     )
 
     mpc_debugger = mpc_debugger_node(
-        "lbr_link_ee",
+        "lbr_link_tool",
         parent_frame="lbr_link_0",
         cost_plot=use_mpc_debugger_str == 'full',
         node_kwargs=dict(
@@ -136,7 +136,7 @@ def launch_setup(
         event_handler=OnProcessExit(
             target_action=mpc_debugger,
             on_exit=[
-                LogError(msg="MPC debugger exitted."),
+                LogError(msg="MPC debugger exited."),
                 EmitEvent(event=Shutdown())]))
 
     return [
