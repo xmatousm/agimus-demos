@@ -43,6 +43,13 @@ def launch_setup(
         )
     )
 
+    # do not launch the rest if we are on the aux launch
+    on_aux_bool = context.perform_substitution(
+        LaunchConfiguration("on_aux")).lower() == "true"
+
+    if on_aux_bool:
+        return [kuka_robot_launch]
+
     ocp_choice_arg = LaunchConfiguration("ocp")
     use_mpc_debugger = LaunchConfiguration("use_mpc_debugger")
     use_mpc_debugger_str = use_mpc_debugger.perform(context)
@@ -201,5 +208,6 @@ def generate_args():
 def generate_launch_description():
     return LaunchDescription(
         generate_args()
+        + generate_default_kuka_args()
         + [OpaqueFunction(function=launch_setup)]
     )

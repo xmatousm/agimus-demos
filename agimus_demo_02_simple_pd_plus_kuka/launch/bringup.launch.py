@@ -5,6 +5,9 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_entity import LaunchDescriptionEntity
 from launch_ros.actions import Node
+from launch.substitutions import (
+    LaunchConfiguration,
+)
 
 from agimus_demos_common.launch_utils_kuka import (
     generate_default_kuka_args,
@@ -23,6 +26,13 @@ def launch_setup(
             path_join("launch", "kuka", "kuka_common_lfc.launch.py")
         )
     )
+
+    # do not launch the rest if we are on the aux launch
+    on_aux_bool = context.perform_substitution(
+        LaunchConfiguration("on_aux")).lower() == "true"
+
+    if on_aux_bool:
+        return [kuka_robot_launch]
 
     pd_plus_controller_params = path_join(
         "config", "pd_plus_controller_params.yaml", pkg=PKG)

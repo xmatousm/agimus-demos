@@ -31,6 +31,18 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
             description="Name of the robot to distinguish multiple arms",
         ),
         DeclareLaunchArgument(
+            "use_aux",
+            default_value="false",
+            description="Use another launch for LFC and robot control only.",
+            choices=["true", "false"],
+        ),
+        DeclareLaunchArgument(
+            "on_aux",
+            default_value="false",
+            description="This is the launch for LFC and robot control only.",
+            choices=["true", "false"],
+        ),
+        DeclareLaunchArgument(
             "use_gazebo",
             default_value="false",
             description="Configures launch file for Gazebo simulation. ",

@@ -8,13 +8,11 @@ from launch.actions import (
     OpaqueFunction,
     RegisterEventHandler,
 )
-from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_entity import LaunchDescriptionEntity
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     LaunchConfiguration,
-    PythonExpression,
 )
 from launch_ros.actions import Node
 
@@ -37,27 +35,49 @@ def launch_setup(
 ) -> list[LaunchDescriptionEntity]:
     arm_id = LaunchConfiguration("arm_id")
     robot_name = LaunchConfiguration("robot_name")
-    use_gazebo = LaunchConfiguration("use_gazebo")
-    external_controllers_params = LaunchConfiguration("external_controllers_params")
-    external_controllers_names = LaunchConfiguration("external_controllers_names")
-    use_rviz = LaunchConfiguration("use_rviz")
+    external_controllers_params = LaunchConfiguration(
+        "external_controllers_params")
+    external_controllers_names = LaunchConfiguration(
+        "external_controllers_names")
     rviz_config_path = LaunchConfiguration("rviz_config_path")
     joint_limits_config_path = LaunchConfiguration("joint_limits_config_path")
     system_config_path = LaunchConfiguration("system_config_path")
 
-    use_gazebo_bool = context.perform_substitution(use_gazebo).lower() == "true"
-    use_rviz_bool = context.perform_substitution(use_rviz).lower() == "true"
+    use_rviz_bool = context.perform_substitution(
+        LaunchConfiguration("use_rviz")).lower() == "true"
+    use_gazebo_bool = context.perform_substitution(
+        LaunchConfiguration("use_gazebo")).lower() == "true"
+    use_aux_bool = context.perform_substitution(
+        LaunchConfiguration("use_aux")).lower() == "true"
+    on_aux_bool = context.perform_substitution(
+        LaunchConfiguration("on_aux")).lower() == "true"
+
     external_controllers_params_str = context.perform_substitution(
         external_controllers_params
     )
 
+    if on_aux_bool and use_aux_bool:
+        raise RuntimeError(
+            "Cannot use both use_aux and on_aux at the same time.")
+
+    external_controllers_names_str = context.perform_substitution(
+        external_controllers_names)
     external_controllers_names_list = ast.literal_eval(
         context.perform_substitution(external_controllers_names)
     )
 
     logger = launch.logging.get_logger(__name__)
+
+    if on_aux_bool:
+        logger.info(f'LAUNCH: AUX')
+    elif use_aux_bool:
+        logger.info(f'LAUNCH: USE AUX')
+    else:
+        logger.info(f'LAUNCH: FULL')
+
     logger.info(f'GAZEBO: {use_gazebo_bool}')
     logger.info(f'ROBOT NAME: {context.perform_substitution(robot_name)}')
+    logger.info(f'EXTERNAL CONTROLLERS: {external_controllers_names_list}')
 
     wait_for_non_zero_joints_node = Node(
         package="agimus_demos_common",
@@ -67,214 +87,170 @@ def launch_setup(
         output="screen",
     )
 
-    spawn_external_controllers = generate_controllers_spawner_launch_description(
-        deepcopy(external_controllers_names_list),
-        controller_params_files=(
-            [external_controllers_params_str]
-            if external_controllers_params_str != ""
-            else None
-        ),
-        extra_spawner_args=[
-            "--inactive",
-            "--controller-manager-timeout",
-            "10000000",
-        ],
-    )
+    launch_config: list[LaunchDescriptionEntity] = [
+        wait_for_non_zero_joints_node]
 
-    activate_external_controllers = ExecuteProcess(
-        cmd=[
-                "ros2",
-                "control",
-                "switch_controllers",
-                "--activate",
-            ]
-            + deepcopy(external_controllers_names_list),
-        output="screen",
-    )
+    if not use_aux_bool:  # full launch or aux launch
+        # gazebo or hardware launch
+        if use_gazebo_bool:
+            launch_config.append(
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(
+                        [path_join("launch", "kuka",
+                                   "kuka_simulation.launch.py")])))
 
-    spawn_external_controllers_on_exit_event = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=wait_for_non_zero_joints_node,
-            on_exit=[spawn_external_controllers],
-        ),
-        condition=IfCondition(
-            PythonExpression(
-                [
-                    external_controllers_names,
-                    " != ['']",
-                ]
+        else:
+            launch_config.append(
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(
+                        [path_join("launch", "kuka",
+                                   "kuka_hardware.launch.py")])))
+
+        # switch to external controllers if any
+        if external_controllers_names_str != "":
+            spawn_external_controllers = generate_controllers_spawner_launch_description(
+                deepcopy(external_controllers_names_list),
+                controller_params_files=(
+                    [external_controllers_params_str]
+                    if external_controllers_params_str != ""
+                    else None
+                ),
+
+                extra_spawner_args=[
+                    "--inactive",
+                    "--controller-manager-timeout",
+                    "10000000",
+                ],
             )
-        ),
-    )
 
-    activate_external_controllers_on_exit_event = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=spawn_external_controllers.entities[2],
-            on_exit=[activate_external_controllers],
-        ),
-        condition=IfCondition(
-            PythonExpression(
-                [
-                    external_controllers_names,
-                    " != ['']",
-                ]
+            activate_external_controllers = ExecuteProcess(
+                cmd=[
+                        "ros2",
+                        "control",
+                        "switch_controllers",
+                        "--activate",
+                    ]
+                    + deepcopy(external_controllers_names_list),
+                output="screen",
             )
-        ),
-    )
 
-    kuka_hardware_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [path_join("launch", "kuka", "kuka_hardware.launch.py")]),
-        #condition=UnlessCondition(
-        #    OrSubstitution(
-        #        use_gazebo, PythonExpression(["'", aux_computer_ip, "' != ''"])
-        #    )
-        #),
-    )
-    # Auxiliary computer's docker does not have all the dependencies like kuka_description
-    # It is better to return with only minimal number of code evaluated to avoid errors
-    # evaluating paths to packages that do not exist in the system. From this point on
-    # checking if we are running on auxiliary computer is not required.
-    if False:
-        return [
-            kuka_hardware_launch,
-            wait_for_non_zero_joints_node,
-            spawn_external_controllers_on_exit_event,
-            activate_external_controllers_on_exit_event,
-        ]
+            spawn_external_controllers_on_exit_event = RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=wait_for_non_zero_joints_node,
+                    on_exit=[spawn_external_controllers],
+                )
+            )
 
-    #kuka_remote_hardware_launch = IncludeLaunchDescription(
-    #    PythonLaunchDescriptionSource(
-    #        [
-    #            PathJoinSubstitution(
-    #                [
-    #                    FindPackageShare("agimus_demos_common"),
-    #                    "launch",
-    #                    "kuka",
-    #                    "kuka_remote_hardware.launch.py",
-    #                ]
-    #            )
-    #        ]
-    #    ),
-    #    launch_arguments={
-    #        "robot_ip": robot_ip,
-    #        "aux_computer_ip": aux_computer_ip,
-    #        "aux_computer_user": aux_computer_user,
-    #        "arm_id": arm_id,
-    #        "kuka_controllers_params": kuka_controllers_params,
-    #    }.items(),
-    #    condition=UnlessCondition(
-    #        OrSubstitution(
-    #            use_gazebo, PythonExpression(["'", aux_computer_ip, "' == ''"])
-    #        )
-    #    ),
-    # )
+            activate_external_controllers_on_exit_event = RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=spawn_external_controllers.entities[2],
+                    on_exit=[activate_external_controllers],
+                )
+            )
 
-    kuka_simulation_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            path_join("launch", "kuka", "kuka_simulation.launch.py")]),
-        condition=IfCondition(use_gazebo),
-    )
+            launch_config.append(spawn_external_controllers_on_exit_event)
+            launch_config.append(activate_external_controllers_on_exit_event)
 
-    system_config_file = system_config_path.perform(context)
-    joint_limits_file = joint_limits_config_path.perform(context)
+    if not on_aux_bool:  # full launch or using aux launch
+        system_config_file = system_config_path.perform(context)
+        joint_limits_file = joint_limits_config_path.perform(context)
 
-    arm_id_str = context.perform_substitution(arm_id)
-    xacro_args = {
-        "robot_name": robot_name,
-        "mode": "gazebo" if use_gazebo_bool else "hardware",
-        "system_config_path": system_config_file,
-        "joint_limits_path": joint_limits_file,
-    }
-    robot_description_file_substitution = path_join(
+        arm_id_str = context.perform_substitution(arm_id)
+        xacro_args = {
+            "robot_name": robot_name,
+            "mode": "gazebo" if use_gazebo_bool else "hardware",
+            "system_config_path": system_config_file,
+            "joint_limits_path": joint_limits_file,
+        }
+
+        robot_description_file_substitution = path_join(
             "urdf", f"{arm_id_str}.xacro", pkg="agimus_description")
 
-    robot_description = parameter_value_xacro(
-        robot_description_file_substitution, xacro_args)
+        robot_description = parameter_value_xacro(
+            robot_description_file_substitution, xacro_args)
 
-    xacro_collision_args = xacro_args.copy()
-    xacro_collision_args["gazebo"] = "false"
-    xacro_collision_args["with_sc"] = "true"
+        xacro_collision_args = xacro_args.copy()
+        xacro_collision_args["gazebo"] = "false"
+        xacro_collision_args["with_sc"] = "true"
 
-    robot_description_with_collision = parameter_value_xacro(
-        robot_description_file_substitution, xacro_collision_args)
+        robot_description_with_collision = parameter_value_xacro(
+            robot_description_file_substitution, xacro_collision_args)
 
-    robot_state_publisher_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        parameters=[get_use_sim_time(), {"robot_description": robot_description}],
-        output="screen",
-        # namespace='lbr', # TODO
-    )
-    robot_collision_publisher_node = Node(
-        package="agimus_demos_common",
-        executable="string_publisher",
-        name="robot_description_with_collision_publisher",
-        output="screen",
-        parameters=[
-            get_use_sim_time(),
-            {
-                "topic_name": "robot_description_with_collision",
-                "string_value": robot_description_with_collision,
-            },
-        ],
-    )
+        joint_state_publisher_node = Node(
+            package="joint_state_publisher",
+            executable="joint_state_publisher",
+            parameters=[
+                get_use_sim_time(),
+                {
+                    "source_list": [
+                        "joint_states",
+                        # f"{arm_id_str}_gripper/joint_states",
+                    ],
+                    "rate": 30,
+                },
+            ],
+        )
 
-    srdf_file_substitution = path_join(
-        "config", f"{arm_id_str}.srdf", pkg=f"{arm_id_str}_moveit_config")
-    srdf_file = srdf_file_substitution.perform(context)
-    with open(srdf_file, "r") as f:
-        robot_srdf_description = f.read()
+        robot_state_publisher_node = Node(
+            package="robot_state_publisher",
+            executable="robot_state_publisher",
+            parameters=[get_use_sim_time(),
+                        {"robot_description": robot_description}],
+            output="screen",
+            # namespace='lbr', # TODO
+        )
 
-    robot_srdf_publisher_node = Node(
-        package="agimus_demos_common",
-        executable="string_publisher",
-        name="robot_srdf_description_publisher",
-        output="screen",
-        parameters=[
-            {
-                "topic_name": "robot_srdf_description",
-                "string_value": robot_srdf_description,
-            }
-        ],
-    )
+        robot_collision_publisher_node = Node(
+            package="agimus_demos_common",
+            executable="string_publisher",
+            name="robot_description_with_collision_publisher",
+            output="screen",
+            parameters=[
+                get_use_sim_time(),
+                {
+                    "topic_name": "robot_description_with_collision",
+                    "string_value": robot_description_with_collision,
+                },
+            ],
+        )
 
-    joint_state_publisher_node = Node(
-        package="joint_state_publisher",
-        executable="joint_state_publisher",
-        parameters=[
-            get_use_sim_time(),
-            {
-                "source_list": [
-                    "joint_states",
-                    # f"{arm_id_str}_gripper/joint_states",
-                ],
-                "rate": 30,
-            },
-        ],
-    )
+        srdf_file_substitution = path_join(
+            "config", f"{arm_id_str}.srdf", pkg=f"{arm_id_str}_moveit_config")
+        srdf_file = srdf_file_substitution.perform(context)
+        with open(srdf_file, "r") as f:
+            robot_srdf_description = f.read()
 
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        parameters=[get_use_sim_time()],
-        arguments=["--display-config", rviz_config_path],
-        condition=IfCondition(use_rviz),
-    )
+        robot_srdf_publisher_node = Node(
+            package="agimus_demos_common",
+            executable="string_publisher",
+            name="robot_srdf_description_publisher",
+            output="screen",
+            parameters=[
+                {
+                    "topic_name": "robot_srdf_description",
+                    "string_value": robot_srdf_description,
+                }
+            ],
+        )
 
-    return [
-        kuka_hardware_launch,
-        #kuka_remote_hardware_launch,
-        kuka_simulation_launch,
-        wait_for_non_zero_joints_node,
-        spawn_external_controllers_on_exit_event,
-        activate_external_controllers_on_exit_event,
-        robot_state_publisher_node,
-        robot_collision_publisher_node,
-        robot_srdf_publisher_node,
-        joint_state_publisher_node,
-        rviz_node,
-    ]
+        launch_config += [
+            joint_state_publisher_node,
+            robot_state_publisher_node,
+            robot_collision_publisher_node,
+            robot_srdf_publisher_node,
+        ]
+
+        if use_rviz_bool and not on_aux_bool:
+            # aux launch does not run rviz
+            launch_config.append(
+                Node(
+                    package="rviz2",
+                    executable="rviz2",
+                    parameters=[get_use_sim_time()],
+                    arguments=["--display-config", rviz_config_path]))
+
+    return launch_config
+
 
 def generate_launch_description():
     return LaunchDescription(
