@@ -41,7 +41,7 @@ def generate_launch_description():
                 "preset",
                 default_value="default",
                 description="Effort example controller parameters preset.",
-                choices=["default", "home0", "home1", "home2"],
+                choices=["default", "home0", "home1", "home2", "home3"],
             )]
         + [OpaqueFunction(function=launch_setup)]
     )
