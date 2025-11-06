@@ -60,7 +60,9 @@ def launch_setup(
     )
 
     agimus_controller_yaml = path_join(
-        "config", "agimus_controller_params.yaml", pkg=PKG)
+        "config",
+        LaunchConfiguration("controller_config_file").perform(context),
+        pkg=PKG)
 
     if use_collision_detection:
         ocp_definition_file = path_join(
@@ -101,8 +103,10 @@ def launch_setup(
                   pkg=PKG))
 
     simple_trajectory_publisher_node = Node(
-        package="agimus_controller_ros",
-        executable="simple_trajectory_publisher",
+        #package="agimus_controller_ros",
+        #executable="simple_trajectory_publisher",
+        package="agimus_demos_common",
+        executable="simple_trajectory_publisher_mod",
         parameters=[get_use_sim_time(), trajectory_weights_yaml],
         output="screen",
     )
@@ -198,8 +202,13 @@ def generate_args():
             description="Trajectory configuration YAML file.",
         ),
         DeclareLaunchArgument(
+            "controller_config_file",
+            default_value="agimus_controller_params.yaml",
+            description="Agimus controller configuration YAML file.",
+        ),
+        DeclareLaunchArgument(
             "obstacles_config_file",
-            default_value="obstacles.xacro",
+            default_value="obstacles_none.xacro",
             description="Obstacles definition XACRO file.",
         ),
     ]

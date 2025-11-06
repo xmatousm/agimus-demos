@@ -29,7 +29,7 @@ simple_trajectory_publisher:
     sine_wave:
       period: [8.0, 8.0, 8.0]
       scale_duration: [2.0, 2.0, 2.0]
-      amplitude: [0.0, 0.08, 0.02]
+      amplitude: [0.0, 0.12, 0.02]
 
     # trajectory_name: sine_wave_configuration_space
     # w_q: [12.0]

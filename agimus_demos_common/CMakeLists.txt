@@ -15,6 +15,11 @@ generate_parameter_module(
   disable_franka_collisions_parameters
   agimus_demos_common/disable_franka_collisions_parameters.yaml)
 
+generate_parameter_module(
+  trajectory_weights_parameters
+  agimus_demos_common/trajectory_weights_parameters.yaml)
+
+
 ament_python_install_package(${PROJECT_NAME} SCRIPTS_DESTINATION
                              lib/${PROJECT_NAME})
 

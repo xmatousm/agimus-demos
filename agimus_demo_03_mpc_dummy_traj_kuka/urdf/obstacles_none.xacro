@@ -22,7 +22,7 @@
         </visual>
 
     <collision>
-      <origin xyz="0.6 0.0 0.15" />
+      <origin xyz="-0.5 0.0 0.15" />
       <geometry>
         <cylinder length="0.3" radius="0.1" />
       </geometry>
@@ -30,14 +30,14 @@
 
      <!-- Note: these two are deleted in collision model update (robot_model.py)-->
      <collision>
-      <origin xyz="0.6 0.0 0.3" />
+      <origin xyz="-0.5 0.0 0.3" />
       <geometry>
         <sphere radius="0.1" />
       </geometry>
     </collision>
 
     <collision>
-      <origin xyz="0.6 0.0 0.0" />
+      <origin xyz="-0.5 0.0 0.0" />
       <geometry>
         <sphere radius="0.1" />
       </geometry>

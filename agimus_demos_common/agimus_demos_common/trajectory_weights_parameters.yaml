@@ -1,0 +1,99 @@
+---
+trajectory_weights_params:
+  trajectory_name:
+    type: string
+    default_value: "sine_wave_configuration_space"
+    description: "Choose which trajectory to use."
+    validation:
+      one_of<>:
+        [
+          [
+            "sine_wave_configuration_space",
+            "sine_wave_cartesian_space",
+            "sine_wave_cartesian_space_weight_increasing",
+            "generic_trajectory",
+            "generic_visual_servoing_trajectory",
+            "line_cartesian_space",
+          ],
+        ]
+  mask:
+    type: bool_array
+    default_value: [True, True, True, True, True, True]
+    description: "Mask for the cartesian space sine wave DoF to update from the Inverse Kinematic."
+  ee_frame_name:
+    type: string
+    description: "End-effector name."
+    validation:
+      not_empty<>: []
+  w_q:
+    type: double_array
+    default_value: [1.0]
+    description: "Weights for joint configuration cost."
+  w_qdot:
+    type: double_array
+    default_value: [0.1]
+    description: "Weights for joint velocity cost."
+  w_qddot:
+    type: double_array
+    default_value: [0.0001]
+    description: "Weights for joint acceleration cost."
+  w_robot_effort:
+    type: double_array
+    default_value: [0.001]
+    description: "Weights for control cost."
+  w_pose:
+    type: double_array
+    default_value: [0.1]
+    description: "Weights for end-effector position cost."
+  w_increasing:
+    max_weight:
+      type: double
+      default_value: 100.0
+      description: "Maximum weight."
+    percent:
+      type: double
+      default_value: 0.9
+      description: "Percent of the maximum weigth reached when visual servoing time is equal to time_reach_percent."
+    time_reach_percent:
+      type: double
+      default_value: 6.0
+      description: "when visual servoing time is equal to time_reach_percent, the weight sent is the percent of the maximum weigth reached."
+  w_collision_avoidance:
+    type: double
+    default_value: 1.0
+    description: "Weight for collision avoidance costs."
+  sine_wave:
+    period:
+      type: double_array
+      default_value: [4.0]
+      description: "Period of the sinusoid in seconds."
+    scale_duration:
+      type: double_array
+      default_value: [1.0]
+      description: "Time for the Quintic polynomial to go from 0 to default_value."
+    amplitude:
+      type: double_array
+      default_value: [0.2]
+      description: "Amplitude of the sinusoid."
+  generic_trajectory_visual_servoing:
+    w_increasing_max_rotation:
+      type: double
+      default_value: 15.0
+      description: "Maximum weight for the the rotation part of the end-effector pose cost increasing weights when visual servoing is active."
+    w_increasing_max_collision_avoidance:
+      type: double
+      default_value: 5.0
+      description: "Maximum weight for the the collision avoidance costs increasing weight when visual servoing is active."
+  line_endpoints:
+    time:
+      type: double_array
+      default_value: [0.0]
+      description: "Transition times."
+    x:
+      type: double_array
+      default_value: [0.0]
+      description: "Coordinates of the endpoints of the poly-line."
+    w_pose:
+      type: double_array
+      default_value: [0.0]
+      description: "Weights for end-effector position cost."
