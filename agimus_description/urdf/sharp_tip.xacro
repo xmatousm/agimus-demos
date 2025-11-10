@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<robot name="tool_sharp_tip" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find agimus_description)/urdf/_materials.urdf.xacro" />
+
+  <xacro:macro name="tool_sharp_tip" params="parent name:=tip">
+
+    <joint name="${name}_joint" type="fixed">
+      <origin xyz="0 0 0.036" rpy="0 0 0"/>
+      <parent link="${parent}"/>
+      <child link="${name}" />
+    </joint>
+
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 -0.036" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://agimus_description/meshes/sharp_tip.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+        <material name="steel"/>
+      </visual>
+    </link>
+  </xacro:macro>
+</robot>

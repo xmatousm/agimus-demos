@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:property name="robot_tools_materials_defined" default="false" />
+  <xacro:unless value="${robot_tools_materials_defined}">
+    <xacro:property name="robot_tools_materials_defined" value="true" />
+
+    <material name="dummy">
+      <color rgba="1.0 0.5 0.0 1"/>
+    </material>
+
+    <material name="steel">
+      <color rgba="0.5 0.5 0.5 1"/>
+    </material>
+
+  </xacro:unless>
+</robot>
