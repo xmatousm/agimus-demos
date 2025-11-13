@@ -5,10 +5,13 @@ from launch.actions import (
     IncludeLaunchDescription,
 )
 from launch.launch_description_entity import LaunchDescriptionEntity
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
-from agimus_demos_common.launch_utils_kuka import path_join
+from agimus_demos_common.launch_utils_kuka import (
+    path_join,
+    generate_default_kuka_args,
+)
 
 
 def launch_setup(
@@ -32,16 +35,24 @@ def launch_setup(
     )]
 
 
+def generate_args():
+    return [
+        DeclareLaunchArgument(
+            "linear_feedback_controller_params",
+            default_value=path_join(
+                "config", "kuka",
+                PythonExpression(
+                    ['"', LaunchConfiguration("robot_name"),
+                     '_linear_feedback_controller_params.yaml"'])),
+            description="Path to the yaml file use to define "
+                        + "Linear Feedback Controller's and Joint State Estimator's params.",
+        ),
+    ]
+
+
 def generate_launch_description():
     return LaunchDescription(
-        [
-            DeclareLaunchArgument(
-                "linear_feedback_controller_params",
-                default_value=path_join(
-                    "config", "kuka", "linear_feedback_controller_params.yaml"),
-                description="Path to the yaml file use to define "
-                            + "Linear Feedback Controller's and Joint State Estimator's params.",
-            ),
-        ]
+        generate_default_kuka_args()
+        + generate_args()
         + [OpaqueFunction(function=launch_setup)]
     )

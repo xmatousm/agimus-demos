@@ -16,6 +16,8 @@ from agimus_demos_common.launch_utils_kuka import (
 def launch_setup(
         context: LaunchContext, *args, **kwargs
 ) -> list[LaunchDescriptionEntity]:
+    robot_name_str = LaunchConfiguration("robot_name").perform(context)
+
     rviz_config_path = LaunchConfiguration("rviz_config_path")
 
     rviz_node = Node(
@@ -23,8 +25,10 @@ def launch_setup(
         executable="rviz2",
         parameters=[get_use_sim_time()],
         arguments=["--display-config", rviz_config_path],
+        namespace=robot_name_str,
     )
 
+    print(rviz_config_path.perform(context))
     return [
         rviz_node,
     ]

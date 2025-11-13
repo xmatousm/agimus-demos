@@ -1,5 +1,5 @@
 ---
-agimus_controller_node:
+/**/agimus_controller_node:
   ros__parameters:
     ocp:
       dt: 0.01

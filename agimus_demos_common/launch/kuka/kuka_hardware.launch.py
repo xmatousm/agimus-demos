@@ -15,6 +15,7 @@ def launch_setup(
         context: LaunchContext, *args, **kwargs
 ) -> list[LaunchDescriptionEntity]:
     kuka_controllers_params = LaunchConfiguration("kuka_controllers_params")
+    robot_name_str = LaunchConfiguration("robot_name").perform(context)
 
     controller_manager_node = Node(
         package="controller_manager",
@@ -23,8 +24,10 @@ def launch_setup(
             kuka_controllers_params,
         ],
         remappings=[
-            ("/controller_manager/robot_description", "/robot_description"),
+            (f"/{robot_name_str}/controller_manager/robot_description",
+             f"/{robot_name_str}/robot_description"),
         ],
+        namespace=robot_name_str,
         output={
             "stdout": "screen",
             "stderr": "screen",
@@ -33,7 +36,10 @@ def launch_setup(
     )
 
     spawn_default_controller = generate_load_controller_launch_description(
-        "joint_state_broadcaster"
+        "joint_state_broadcaster",
+        extra_spawner_args=["--ros-args",
+                            "-r", f"__ns:=/{robot_name_str}",
+                            ],
     )
 
     return [

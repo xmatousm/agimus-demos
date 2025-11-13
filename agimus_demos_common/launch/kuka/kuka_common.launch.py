@@ -4,16 +4,12 @@ from copy import deepcopy
 from launch import LaunchContext, LaunchDescription
 from launch.actions import (
     ExecuteProcess,
-    IncludeLaunchDescription,
     OpaqueFunction,
     RegisterEventHandler,
 )
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_entity import LaunchDescriptionEntity
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import (
-    LaunchConfiguration,
-)
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 from controller_manager.launch_utils import (
@@ -25,6 +21,8 @@ from agimus_demos_common.launch_utils_kuka import (
     get_use_sim_time,
     parameter_value_xacro,
     path_join,
+    include_path_join,
+    wait_for_non_zero_joints_run,
 )
 
 import launch.logging
@@ -42,6 +40,7 @@ def launch_setup(
     rviz_config_path = LaunchConfiguration("rviz_config_path")
     joint_limits_config_path = LaunchConfiguration("joint_limits_config_path")
     system_config_path = LaunchConfiguration("system_config_path")
+    initial_joint_positions_path = LaunchConfiguration("initial_joint_positions_path")
 
     use_rviz_bool = context.perform_substitution(
         LaunchConfiguration("use_rviz")).lower() == "true"
@@ -51,6 +50,7 @@ def launch_setup(
         LaunchConfiguration("use_aux")).lower() == "true"
     on_aux_bool = context.perform_substitution(
         LaunchConfiguration("on_aux")).lower() == "true"
+    robot_name_str = context.perform_substitution(robot_name)
 
     external_controllers_params_str = context.perform_substitution(
         external_controllers_params
@@ -76,35 +76,22 @@ def launch_setup(
         logger.info(f'LAUNCH: FULL')
 
     logger.info(f'GAZEBO: {use_gazebo_bool}')
-    logger.info(f'ROBOT NAME: {context.perform_substitution(robot_name)}')
+    logger.info(f'ROBOT NAME: {robot_name_str}')
     logger.info(f'EXTERNAL CONTROLLERS: {external_controllers_names_list}')
 
-    wait_for_non_zero_joints_node = Node(
-        package="agimus_demos_common",
-        executable="wait_for_non_zero_joints_node",
-        name="wait_for_non_zero_joints_node",
-        parameters=[get_use_sim_time(), {'timeout': 10.0}],
-        output="screen",
-    )
-
-    launch_config: list[LaunchDescriptionEntity] = [
-        wait_for_non_zero_joints_node]
+    launch_config: list[LaunchDescriptionEntity] = []
 
     if not use_aux_bool:  # full launch or aux launch
         # gazebo or hardware launch
         if use_gazebo_bool:
             launch_config.append(
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(
-                        [path_join("launch", "kuka",
-                                   "kuka_simulation.launch.py")])))
+                include_path_join("launch", "kuka",
+                                  "kuka_simulation.launch.py"))
 
         else:
             launch_config.append(
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(
-                        [path_join("launch", "kuka",
-                                   "kuka_hardware.launch.py")])))
+                include_path_join("launch", "kuka",
+                                  "kuka_hardware.launch.py"))
 
         # switch to external controllers if any
         if external_controllers_names_str != "":
@@ -120,6 +107,8 @@ def launch_setup(
                     "--inactive",
                     "--controller-manager-timeout",
                     "10000000",
+                    "--ros-args",
+                    "-r", f"__ns:=/{robot_name_str}",
                 ],
             )
 
@@ -128,17 +117,16 @@ def launch_setup(
                         "ros2",
                         "control",
                         "switch_controllers",
+                        "--controller-manager",
+                        f"/{robot_name_str}/controller_manager",
                         "--activate",
                     ]
                     + deepcopy(external_controllers_names_list),
                 output="screen",
             )
 
-            spawn_external_controllers_on_exit_event = RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=wait_for_non_zero_joints_node,
-                    on_exit=[spawn_external_controllers],
-                )
+            launch_config += wait_for_non_zero_joints_run(
+                robot_name_str,[spawn_external_controllers]
             )
 
             activate_external_controllers_on_exit_event = RegisterEventHandler(
@@ -148,12 +136,12 @@ def launch_setup(
                 )
             )
 
-            launch_config.append(spawn_external_controllers_on_exit_event)
             launch_config.append(activate_external_controllers_on_exit_event)
 
     if not on_aux_bool:  # full launch or using aux launch
         system_config_file = system_config_path.perform(context)
         joint_limits_file = joint_limits_config_path.perform(context)
+        initial_joint_positions_file = initial_joint_positions_path.perform(context)
 
         arm_id_str = context.perform_substitution(arm_id)
         xacro_args = {
@@ -161,7 +149,12 @@ def launch_setup(
             "mode": "gazebo" if use_gazebo_bool else "hardware",
             "system_config_path": system_config_file,
             "joint_limits_path": joint_limits_file,
+            "initial_joint_positions_path": initial_joint_positions_file,
         }
+
+        if external_controllers_params_str != "":
+            xacro_args[
+                "controller_params_path"] = external_controllers_params_str
 
         robot_description_file_substitution = path_join(
             "urdf", f"{arm_id_str}.xacro", pkg="agimus_description")
@@ -189,6 +182,7 @@ def launch_setup(
                     "rate": 30,
                 },
             ],
+            namespace=robot_name_str,
         )
 
         robot_state_publisher_node = Node(
@@ -197,7 +191,7 @@ def launch_setup(
             parameters=[get_use_sim_time(),
                         {"robot_description": robot_description}],
             output="screen",
-            # namespace='lbr', # TODO
+            namespace=robot_name_str,
         )
 
         robot_collision_publisher_node = Node(
@@ -212,6 +206,7 @@ def launch_setup(
                     "string_value": robot_description_with_collision,
                 },
             ],
+            namespace=robot_name_str,
         )
 
         srdf_file_substitution = path_join(

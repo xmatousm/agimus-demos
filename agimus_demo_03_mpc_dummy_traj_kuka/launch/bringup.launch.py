@@ -5,10 +5,7 @@ from launch.actions import (
     TimerAction,
     DeclareLaunchArgument,
     EmitEvent,
-    IncludeLaunchDescription,
 )
-
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from launch.events import (Shutdown)
 
@@ -23,7 +20,10 @@ from agimus_demos_common.launch_utils_kuka import (
     get_use_sim_time,
     parameter_value_xacro,
     path_join,
+    include_path_join,
     LogError,
+    wait_for_non_zero_joints_run,
+    remap_to_ns,
 )
 from agimus_demos_common.static_transform_publisher_node import (
     static_transform_publisher_node,
@@ -37,18 +37,14 @@ PKG = "agimus_demo_03_mpc_dummy_traj_kuka"
 def launch_setup(
         context: LaunchContext, *args, **kwargs
 ) -> list[LaunchDescriptionEntity]:
-    kuka_robot_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            path_join("launch", "kuka", "kuka_common_lfc.launch.py")
-        )
-    )
+    kuka_robot_launch = include_path_join(
+        "launch", "kuka", "kuka_common_lfc.launch.py")
 
     # do not launch the rest if we are on the aux launch
-    on_aux_bool = context.perform_substitution(
-        LaunchConfiguration("on_aux")).lower() == "true"
-
-    if on_aux_bool:
+    if LaunchConfiguration("on_aux").perform(context).lower() == "true":
         return [kuka_robot_launch]
+
+    robot_name_str = LaunchConfiguration("robot_name").perform(context)
 
     ocp_choice_arg = LaunchConfiguration("ocp")
     use_mpc_debugger = LaunchConfiguration("use_mpc_debugger")
@@ -77,13 +73,6 @@ def launch_setup(
     else:
         extra_params = {}
 
-    wait_for_non_zero_joints_node = Node(
-        package="agimus_demos_common",
-        executable="wait_for_non_zero_joints_node",
-        parameters=[get_use_sim_time(), {'timeout': 10.0}],
-        output="screen",
-    )
-
     agimus_controller_node = Node(
         package="agimus_controller_ros",
         executable="agimus_controller_node",
@@ -93,7 +82,12 @@ def launch_setup(
             extra_params,
         ],
         output="screen",
-        remappings=[("robot_description", "robot_description_with_collision")],
+        remappings=remap_to_ns(robot_name_str,
+                               "robot_description",
+                               "environment_description",
+                               'linear_feedback_controller/get_parameters'
+                               ),
+        namespace=robot_name_str,
     )
 
     trajectory_weights_yaml = (
@@ -109,6 +103,12 @@ def launch_setup(
         executable="simple_trajectory_publisher_mod",
         parameters=[get_use_sim_time(), trajectory_weights_yaml],
         output="screen",
+        namespace=robot_name_str,
+        remappings=remap_to_ns(robot_name_str,
+                               "robot_description",
+                               'linear_feedback_controller/get_parameters',
+                               'agimus_controller_node/get_parameters',
+                               ),
     )
 
     obstacles_config_path = path_join(
@@ -125,21 +125,29 @@ def launch_setup(
         output="screen",
         remappings=[("robot_description", "environment_description")],
         parameters=[{"robot_description": environment_description}],
+        namespace=robot_name_str
     )
     tf_node = static_transform_publisher_node(
-        frame_id="lbr_link_0",
+        frame_id=f"{robot_name_str}_link_0",
         child_frame_id="obstacle1",
     )
 
     mpc_debugger = mpc_debugger_node(
-        "lbr_link_tool",
-        parent_frame="lbr_link_0",
+        f"{robot_name_str}_link_tool",
+        parent_frame=f"{robot_name_str}_link_0",
         cost_plot=use_mpc_debugger_str == 'full',
         node_kwargs=dict(
             remappings=[
-                ("robot_description", "robot_description_with_collision")],
+                ("/robot_description", f"/{robot_name_str}/robot_description_with_collision"),
+                *remap_to_ns(robot_name_str,
+                             "environment_description",
+                             'linear_feedback_controller/get_parameters',
+                             'agimus_controller_node/get_parameters',
+                             ),
+            ],
             condition=IfCondition(
                 PythonExpression(["'", use_mpc_debugger_str, "' != 'false'"])),
+            namespace=robot_name_str
         ),
     )
 
@@ -152,19 +160,13 @@ def launch_setup(
 
     return [
         kuka_robot_launch,
-        wait_for_non_zero_joints_node,
+        *wait_for_non_zero_joints_run(robot_name_str,
+                                      [agimus_controller_node,
+                                       environment_publisher_node]
+                                      ),
         tf_node,
         mpc_debugger,
         mpc_debugger_required,
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=wait_for_non_zero_joints_node,
-                on_exit=[
-                    agimus_controller_node,
-                    environment_publisher_node,
-                ],
-            )
-        ),
         RegisterEventHandler(
             event_handler=OnProcessStart(
                 target_action=agimus_controller_node,
@@ -188,7 +190,7 @@ def generate_args():
         DeclareLaunchArgument(
             "ocp",
             default_value="custom_with_collision_avoidance",
-            description="Select the ocp to use. Either the default one or the one from this package that does collision avoidance.",
+            description="The ocp to use. Either the default one or the one from this package that does collision avoidance.",
             choices=["default_ocp", "custom_with_collision_avoidance"]
         ),
         DeclareLaunchArgument(

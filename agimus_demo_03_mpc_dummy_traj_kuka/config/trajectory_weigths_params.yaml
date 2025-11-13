@@ -1,5 +1,5 @@
 ---
-simple_trajectory_publisher:
+/**/simple_trajectory_publisher:
   ros__parameters:
     ee_frame_name: lbr_link_tool
 

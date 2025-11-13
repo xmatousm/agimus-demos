@@ -1,5 +1,5 @@
 ---
-pd_plus_controller:
+/**/pd_plus_controller:
   ros__parameters:
     moving_joint_names:
     - lbr_A1

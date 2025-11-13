@@ -4,12 +4,15 @@
   ros__parameters:
     update_rate: 1000
 
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+
 # ROS2 effort control example controller
-/effort_example_controller:
+/**/effort_example_controller:
   ros__parameters:
     type: EffortExampleController
 
-    robot_name: lbr
     dq_filt_alpha: 0.8
     report_period: 0.0
     init_pos: [0.0, 0.4, 0.0, -0.4, 0.0, 1.2, 0.0]
@@ -22,11 +25,10 @@
     effort_max: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 
 # Different values for the controller
-/effort_example_controller_home0:
+/**/effort_example_controller_home0:
   ros__parameters:
     type: EffortExampleController
 
-    robot_name: lbr
     dq_filt_alpha: 0.8
     report_period: 0.1
     init_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -38,11 +40,10 @@
     periods: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
     effort_max: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 
-/effort_example_controller_home1:
+/**/effort_example_controller_home1:
   ros__parameters:
     type: EffortExampleController
 
-    robot_name: lbr
     dq_filt_alpha: 0.8
     report_period: 0.1
     init_pos: [0.0, 0.6, 0.0, -1.05, 0.0, 1.45, 0.0]
@@ -54,11 +55,10 @@
     periods: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
     effort_max: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 
-/effort_example_controller_home2:
+/**/effort_example_controller_home2:
   ros__parameters:
     type: EffortExampleController
 
-    robot_name: lbr
     dq_filt_alpha: 0.8
     report_period: 0.1
     init_pos: [0.0, 0.7, 0.0, -1.4, 0.0, 0.95, 0.0]
@@ -71,11 +71,10 @@
     effort_max: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
 
 
-/effort_example_controller_home3:
+/**/effort_example_controller_home3:
   ros__parameters:
     type: EffortExampleController
 
-    robot_name: lbr
     dq_filt_alpha: 0.8
     report_period: 0.1
     init_pos: [0.2, 0.7, 0.0, -1.4, 0.0, 0.95, 0.0]
