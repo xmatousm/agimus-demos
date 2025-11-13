@@ -1,56 +1,38 @@
 from launch import LaunchContext, LaunchDescription
-from launch.actions import (
-    DeclareLaunchArgument,
-    IncludeLaunchDescription,
-    OpaqueFunction,
-    RegisterEventHandler,
-)
+from launch.actions import OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_entity import LaunchDescriptionEntity
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 from controller_manager.launch_utils import (
-    generate_controllers_spawner_launch_description,  # noqa: I001
+    generate_controllers_spawner_launch_description,
 )
 
+from agimus_demos_common.launch_utils_kuka import (
+    path_join,
+    include_path_join,
+)
 
 def launch_setup(
     context: LaunchContext, *args, **kwargs
 ) -> list[LaunchDescriptionEntity]:
-    gz_verbose = LaunchConfiguration("gz_verbose")
-    gz_headless = LaunchConfiguration("gz_headless")
 
-    gz_verbose_bool = context.perform_substitution(gz_verbose).lower() == "true"
-    gz_headless_bool = context.perform_substitution(gz_headless).lower() == "true"
-    gz_gui_config_path_str = context.perform_substitution(
-        PathJoinSubstitution(
-            [
-                FindPackageShare("agimus_demos_common"),
-                "config",
-                "gz_gui.config",
-            ]
-        )
-    )
+    gz_verbose_bool = LaunchConfiguration("gz_verbose").perform(context).lower() == "true"
+    gz_headless_bool = LaunchConfiguration("gz_headless").perform(context).lower() == "true"
+    gz_gui_config_path_str = path_join("config", "gz_gui.config").perform(context)
+    robot_name_str = LaunchConfiguration("robot_name").perform(context)
 
-    gazebo_empty_world = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("ros_gz_sim"),
-                    "launch",
-                    "gz_sim.launch.py",
-                ]
-            )
-        ),
+    world = path_join("config", "kuka", "gazebo_empty_world.sdf").perform(context)
+
+    gazebo_empty_world = include_path_join(
+        "launch", "gz_sim.launch.py", pkg="ros_gz_sim",
         launch_arguments={
-            "gz_args": "empty.sdf -r"
+            "gz_args": world + " -r"
             + f" {'-s' if gz_headless_bool else ''}"
             + f" {'-v 3' if gz_verbose_bool else ''}"
             + f" --gui-config {gz_gui_config_path_str}"
-        }.items(),
+        }
     )
 
     ros_gz_bridge_node = Node(
@@ -60,13 +42,7 @@ def launch_setup(
             {
                 "expand_gz_topic_names": True,
                 "use_sim_time": True,
-                "config_file": PathJoinSubstitution(
-                    [
-                        FindPackageShare("agimus_demos_common"),
-                        "config",
-                        "gz_bridge.yaml",
-                    ]
-                ),
+                "config_file": path_join("config", "gz_bridge.yaml")
             }
         ],
         output="screen",
@@ -75,16 +51,21 @@ def launch_setup(
     robot_spawner_node = Node(
         package="ros_gz_sim",
         executable="create",
-        arguments=["-topic", "/robot_description"],
+        arguments=["-topic", f"/{robot_name_str}/robot_description"], # TODO
         parameters=[{"use_sim_time": True}],
         output="screen",
-    )
+        remappings=[
+            ('/robot_state_publisher', f'/{robot_name_str}/robot_state_publisher'),
+            ],
+        namespace=robot_name_str,
+       )
 
     spawn_default_controllers = generate_controllers_spawner_launch_description(
         [
             "joint_state_broadcaster",
-            #"gripper_action_controller",
-        ]
+        ],
+        extra_spawner_args=["--controller-manager",
+                            f"/{robot_name_str}/controller_manager"],
     )
 
     return [
