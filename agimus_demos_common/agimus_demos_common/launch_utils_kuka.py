@@ -1,12 +1,23 @@
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, \
-    Command, FindExecutable
+    Command, FindExecutable, PythonExpression
 from launch.substitution import Substitution
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
 from launch.frontend import expose_action
 from launch.launch_context import LaunchContext
-from launch.actions import LogInfo
+from launch.actions import LogInfo, RegisterEventHandler
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.actions import Node
+from launch.event_handlers import OnProcessExit
+from launch import LaunchDescription, LaunchDescriptionEntity
+
+
+def path_join(*items: str | Substitution,
+              pkg: str = "agimus_demos_common") -> Substitution:
+    """Join items into a path to a package share."""
+    return PathJoinSubstitution(
+        [FindPackageShare(pkg), *items])
 
 
 def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
@@ -56,14 +67,11 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
         ),
         DeclareLaunchArgument(
             "rviz_config_path",
-            default_value=PathJoinSubstitution(
-                [
-                    FindPackageShare("agimus_demos_common"),
-                    "rviz",
-                    "kuka",
-                    "preview.rviz",
-                ]
-            ),
+            default_value=path_join(
+                "rviz", "kuka",
+                PythonExpression(
+                    ['"', LaunchConfiguration("robot_name"),
+                     '_preview.rviz"'])),
             description="Path to RViz configuration file",
         ),
         DeclareLaunchArgument(
@@ -79,13 +87,21 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
             description="Path to joint limits YAML file",
         ),
         DeclareLaunchArgument(
+            "initial_joint_positions_path",
+            default_value=path_join(
+                "config", "kuka", "initial_joint_positions.yaml"),
+            description="Path to joint limits YAML file",
+        ),
+        DeclareLaunchArgument(
             "system_config_path",
             default_value=PathJoinSubstitution(
                 [
                     FindPackageShare("agimus_demos_common"),
                     "config",
                     "kuka",
-                    "lbr_system_config.yaml",
+                    PythonExpression(
+                        ['"', LaunchConfiguration("robot_name"),
+                         '_system_config.yaml"']),
                 ]
             ),
             description="Path to LBR system config YAML file",
@@ -116,7 +132,6 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
             description="Path to the yaml file use to define controller parameters.",
         ),
     ]
-
 
 def get_use_sim_time() -> dict[str, LaunchConfiguration]:
     """Helper function creating action setting param `use_sim_time`.
@@ -155,8 +170,37 @@ def parameter_value_xacro(
 
 
 def path_join(*items: str, pkg: str = "agimus_demos_common") -> Substitution:
+    """Join items into a path to a package share."""
     return PathJoinSubstitution(
         [FindPackageShare(pkg), *items])
+
+
+def include_path_join(*items: str, pkg: str = "agimus_demos_common",
+                      launch_arguments=None) -> IncludeLaunchDescription:
+    """Join items into a path to a package share and include as launch description ."""
+
+    if launch_arguments is None:
+        launch_arguments = []
+
+    if isinstance(launch_arguments, dict):
+        launch_arguments = [launch_arguments]
+
+    args = {}
+    # go through arguments, latter overwrites former
+    for arg in launch_arguments:
+        if isinstance(arg, dict):
+            for k in arg:
+                args[k] = arg[k]
+        elif isinstance(arg, tuple):
+            args[arg[0]] = arg[1]
+        elif isinstance(arg, DeclareLaunchArgument):
+            args[arg.name] = LaunchConfiguration(arg.name)
+        else:
+            raise RuntimeError(f"Unhandled lauch argument {arg}")
+
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([path_join(*items, pkg=pkg)]),
+        launch_arguments=args.items())
 
 
 @expose_action('log_error')
@@ -169,3 +213,30 @@ class LogError(LogInfo):
             ''.join([context.perform_substitution(sub) for sub in self.msg])
         )
         return None
+
+
+class WaitForNonZeroJointsNode(Node):
+    def __init__(self, robot_name_str):
+        super().__init__(
+            package="agimus_demos_common",
+            executable="wait_for_non_zero_joints_node",
+            parameters=[get_use_sim_time(), {'timeout': 10.0}],
+            output="screen",
+            namespace=robot_name_str,
+            remappings=[("/joint_states", f"/{robot_name_str}/joint_states")],
+        )
+
+
+def wait_for_non_zero_joints_run(robot_name_str: str,
+                                 run: list[LaunchDescriptionEntity]):
+    wait_for_non_zero_joints_node = WaitForNonZeroJointsNode(robot_name_str)
+    handler = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=wait_for_non_zero_joints_node,
+            on_exit=run
+        )
+    )
+    return wait_for_non_zero_joints_node, handler
+
+def remap_to_ns(ns, *items: str):
+    return [ (f"/{item}", f"/{ns}/{item}") for item in items]
