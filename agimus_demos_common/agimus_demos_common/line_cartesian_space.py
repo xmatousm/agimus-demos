@@ -1,32 +1,29 @@
-from copy import deepcopy
 import numpy as np
 import pinocchio as pin
-import time
 
 from agimus_controller.trajectories.trajectory_base import TrajectoryBase
-from agimus_controller.trajectory import (
-    TrajectoryPoint,
-    TrajectoryPointWeights,
-    WeightedTrajectoryPoint,
-    interpolate_weights
-)
+from agimus_controller.trajectory import WeightedTrajectoryPoint
+from agimus_demos_common.line_segment_cartesian_space import \
+    LineSegmentCartesianSpace
 
 
 class LineCartesianSpace(TrajectoryBase):
-    """ Define the trajectory of a line defined by two end-points in cartesian space."""
+    """ Define the trajectory of a poly-line defined by end-points in cartesian space."""
 
     def __init__(
             self,
             x,
             transition_time,
+            w_pose_mul,
             ee_frame_name,
             w_q,
             w_qdot,
             w_qddot,
             w_robot_effort,
             w_pose,
+
     ):
-        """Initialize parameters needed for the line in cartesian space trajectory.
+        """Initialize the poly-line trajectory in cartesian space trajectory.
 
         Args:
             x (x,y,z, ...): cartesian coords of line end-points (num_pts * 3)
@@ -44,99 +41,52 @@ class LineCartesianSpace(TrajectoryBase):
 
         super().__init__(ee_frame_name)
         self.x = np.array(x).reshape((-1, 3))
-        self.n_segments = len(self.x)
-
-        self.x = np.vstack([self.x, self.x[0]])
+        self.n_points = len(self.x)
         self.trasition_time = transition_time
-        self.w_q = w_q
-        self.w_qdot = w_qdot
-        self.w_qddot = w_qddot
-        self.w_robot_effort = w_robot_effort
-        self.w_pose = w_pose
+        self.w_pose_mul = w_pose_mul if w_pose_mul else [1.0] * self.n_points
+        self.w_q = np.array(w_q)
+        self.w_qdot = np.array(w_qdot)
+        self.w_qddot = np.array(w_qddot)
+        self.w_robot_effort = np.array(w_robot_effort)
+        self.w_pose = np.array(w_pose)
         self.ee_init_pos = None
-        self.t_from = None
-        self.t_to = 0.0
-        self.x_from = None
-        self.x_to = None
-        self.t_duration = None
-        self.segment = -1
-        self.weights_from: TrajectoryPointWeights = None
-        self.weights_to: TrajectoryPointWeights = None
+        self.point = -1  # the current point we are moving to
+
+        self.segment = LineSegmentCartesianSpace(ee_frame_name)
 
     def initialize(self, pin_model: pin.Model, q0: np.ndarray) -> None:
         """Initialize the trajectory generator."""
         super().initialize(pin_model, q0)
         self.ee_init_pos = self.get_end_effector_pose_from_q_as_se3(self.q0)
-        self.t_to = 0.0
-        self.t_from = 0.0
-        self.segment = -1
-        self.rt0 = time.time()
+
+        self.segment.initialize(pin_model, q0)
+        self.segment.initialize_w(self.w_pose, self.w_pose,
+                                  self.w_q, self.w_qdot, self.w_qddot,
+                                  self.w_robot_effort)
+        self.point = -1
 
     def get_traj_point_at_t(self, t: np.float64) -> WeightedTrajectoryPoint:
-        assert t >= self.t_from, "t not monotonous"
-        rt = time.time() - self.rt0
-
-        if t >= self.t_to:  # switch the segment
-            if self.segment < 0:
-                self.x_from = self.ee_init_pos.translation
-                self.x_to = self.x[0]
-                self.t_duration = self.trasition_time[0]
-
-                self.segment = 0
+        if not self.segment.running:  # switch the segment
+            if self.point < 0:
+                self.segment.set_segment(
+                    t=t,
+                    x_from=self.ee_init_pos.translation,
+                    x_to=self.x[0],
+                    t_duration=self.trasition_time[0],
+                    w_pose_from=self.w_pose * self.w_pose_mul[0],
+                    w_pose_to=self.w_pose * self.w_pose_mul[0])
+                self.point = 0
             else:
-                self.x_from = self.x[self.segment]
-                self.x_to = self.x[self.segment + 1]
-                self.t_duration = self.trasition_time[self.segment + 1]
+                point_from = self.point
+                self.point = (self.point + 1) % self.n_points
 
-                self.segment = (self.segment + 1) % self.n_segments
-
-            self.weights_from = TrajectoryPointWeights(
-                w_robot_configuration=self.w_q,
-                w_robot_velocity=self.w_qdot,
-                w_robot_acceleration=self.w_qddot,
-                w_robot_effort=self.w_robot_effort,
-                w_end_effector_poses={self.ee_frame_name: self.w_pose},
-            )
-
-            self.weights_to = TrajectoryPointWeights(
-                w_robot_configuration=self.w_q,
-                w_robot_velocity=self.w_qdot,
-                w_robot_acceleration=self.w_qddot,
-                w_robot_effort=self.w_robot_effort,
-                w_end_effector_poses={self.ee_frame_name: self.w_pose},
-            )
-
-            self.t_from = t
-            self.t_to = t + self.t_duration
+                self.segment.set_segment(
+                    t=t,
+                    x_from=self.x[point_from],
+                    x_to=self.x[self.point],
+                    t_duration=self.trasition_time[point_from + 1],
+                    w_pose_from=self.w_pose * self.w_pose_mul[point_from],
+                    w_pose_to=self.w_pose * self.w_pose_mul[self.point])
 
         # interpolate cartesian line
-        alpha = (t - self.t_from) / self.t_duration
-        beta = 1 - alpha
-
-        ee_des_pos = self.ee_init_pos.copy()
-        ee_des_pos.translation[0] = self.x_from[0] * beta + self.x_to[0] * alpha
-        ee_des_pos.translation[1] = self.x_from[1] * beta + self.x_to[1] * alpha
-        ee_des_pos.translation[2] = self.x_from[2] * beta + self.x_to[2] * alpha
-
-        q = self.q0.copy()
-        dq = np.zeros(self.pin_model.nv)
-        ddq = np.zeros(self.pin_model.nv)
-        u = pin.rnea(self.pin_model, self.pin_data, q, dq, ddq)
-
-        traj_point = TrajectoryPoint(
-            time_ns=t,
-            robot_configuration=q,
-            robot_velocity=dq,
-            robot_acceleration=ddq,
-            robot_effort=u,
-            end_effector_poses={
-                self.ee_frame_name: pin.SE3ToXYZQUAT(ee_des_pos)},
-        )
-
-        #print(self.weights_from, self.weights_to, alpha)
-        traj_weights = self.weights_from
-        #interpolate_weights(self.weights_from, self.weights_to, alpha))
-
-        return WeightedTrajectoryPoint(
-            point=deepcopy(traj_point), weights=deepcopy(traj_weights)
-        )
+        return self.segment.get_traj_point_at_t(t)
