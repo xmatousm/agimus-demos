@@ -51,7 +51,7 @@ def launch_setup(
     robot_spawner_node = Node(
         package="ros_gz_sim",
         executable="create",
-        arguments=["-topic", f"/{robot_name_str}/robot_description"], # TODO
+        arguments=["-topic", f"/{robot_name_str}/robot_description"],
         parameters=[{"use_sim_time": True}],
         output="screen",
         remappings=[
