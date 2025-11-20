@@ -36,27 +36,27 @@ running_model:
         residual:
           class: ResidualModelFramePlacement
           id: 0
-    #- name: distance
-    #  update: false
-    #  weight: 0.05
-    #  publish_residual: true
-    #  cost:
-    #    class: CostModelResidual
-    #    activation:
-    #      class: ActivationModelQuadExp
-    #      alpha: 1e-4   # 1cm squared
-    #    residual:
-    #      class: ResidualDistanceCollision
-    #      collision_pair: [lbr_link_7_0, obstacle1_0]
-    #constraints:
-    #- name: collision
-    #  constraint:
-    #    class: ConstraintModelResidual
-    #    lower: 0.01   # cm
-    #    upper: inf
-    #    residual:
-    #      class: ResidualDistanceCollision
-    #      collision_pair: [lbr_link_7_0, obstacle1_0]
+    - name: distance
+      update: false
+      weight: 0.05
+      publish_residual: true
+      cost:
+        class: CostModelResidual
+        activation:
+          class: ActivationModelQuadExp
+          alpha: 1e-4   # 1cm squared
+        residual:
+          class: ResidualDistanceCollision
+          collision_pair: [lbr_link_7_0, obstacle1_0]
+    constraints:
+    - name: collision
+      constraint:
+        class: ConstraintModelResidual
+        lower: 0.01   # cm
+        upper: inf
+        residual:
+          class: ResidualDistanceCollision
+          collision_pair: [lbr_link_7_0, obstacle1_0]
 
 terminal_model:
   class: IntegratedActionModelEuler
