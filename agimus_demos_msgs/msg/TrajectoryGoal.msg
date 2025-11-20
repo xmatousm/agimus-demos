@@ -1,0 +1,12 @@
+string frame_name
+int64 id
+float64[] pose
+float64[] w_q
+float64[] w_qdot
+float64[] w_qddot
+float64[] w_robot_effort
+float64[] w_pose
+float64 min_distance
+float64 duration
+float64 speed
+float64 wait_in_goal

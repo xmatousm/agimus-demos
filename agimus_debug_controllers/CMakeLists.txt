@@ -1,0 +1,69 @@
+cmake_minimum_required(VERSION 3.5)
+project(agimus_debug_controllers)
+
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+option(CHECK_TIDY "Adds clang-tidy tests" OFF)
+
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(controller_interface REQUIRED)
+find_package(hardware_interface REQUIRED)
+find_package(moveit_core REQUIRED)
+find_package(moveit_msgs REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(agimus_demos_msgs REQUIRED)
+
+add_library(
+        ${PROJECT_NAME}
+        SHARED
+        src/effort_passthrough_state_publisher.cpp
+)
+
+ament_target_dependencies(
+        ${PROJECT_NAME}
+        controller_interface
+        hardware_interface
+        moveit_core
+        moveit_msgs
+        pluginlib
+        rclcpp
+        rclcpp_lifecycle
+        std_srvs
+        agimus_demos_msgs
+)
+
+pluginlib_export_plugin_description_file(controller_interface agimus_debug_controllers.xml)
+
+install(
+        TARGETS
+        ${PROJECT_NAME}
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+)
+
+ament_export_libraries(
+        ${PROJECT_NAME}
+)
+ament_export_dependencies(
+        controller_interface
+        pluginlib
+        rclcpp
+        rclcpp_lifecycle
+        hardware_interface
+        moveit_core
+)
+ament_package()

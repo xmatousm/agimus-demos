@@ -1,5 +1,12 @@
 ---
-joint_state_estimator:
+/**/controller_manager:
+  ros__parameters:
+    update_rate: 1000
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+/**/joint_state_estimator:
   ros__parameters:
     type: linear_feedback_controller/JointStateEstimator
     state_interfaces:
@@ -47,7 +54,7 @@ joint_state_estimator:
     - linear_feedback_controller/lbr_A6/effort
     - linear_feedback_controller/lbr_A7/effort
 
-linear_feedback_controller:
+/**/linear_feedback_controller:
   ros__parameters:
     type: linear_feedback_controller/LinearFeedbackController
     moving_joint_names:
@@ -102,9 +109,9 @@ linear_feedback_controller:
     remove_gravity_compensation_effort: true
     robot_has_free_flyer: false
 
-effort_passthrough_state_publisher:
+/**/effort_passthrough_state_publisher:
   ros__parameters:
-    type: xmm_controllers/EffortPassThroughStatePublisher
+    type: agimus_debug_controllers/EffortPassThroughStatePublisher
     joint_prefix: lbr_A
-    report_period: 0.0
+    report_period: 0.01
 

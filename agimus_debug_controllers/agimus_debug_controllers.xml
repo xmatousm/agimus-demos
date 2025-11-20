@@ -1,0 +1,10 @@
+<library path="agimus_debug_controllers">
+    <class name="agimus_debug_controllers/EffortPassThroughStatePublisher"
+           type="agimus_debug_controllers::EffortPassThroughStatePublisher"
+           base_class_type="controller_interface::ChainableControllerInterface">
+        <description>
+            Pass-through effort controller that publishes the efforts and joint
+            states to a topic.
+        </description>
+    </class>
+</library>
