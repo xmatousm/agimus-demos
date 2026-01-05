@@ -14,6 +14,7 @@ trajectory_weights_params:
             "generic_trajectory",
             "generic_visual_servoing_trajectory",
             "line_cartesian_space",
+            "line_cartesian_space_adaptive",
           ],
         ]
   mask:
@@ -85,6 +86,10 @@ trajectory_weights_params:
       default_value: 5.0
       description: "Maximum weight for the the collision avoidance costs increasing weight when visual servoing is active."
   line_endpoints:
+    rotation:
+      type: double_array
+      default_value: [0.0]
+      description: "End effector rotation [r, p, y] in radians."
     time:
       type: double_array
       default_value: [0.0]
@@ -93,7 +98,19 @@ trajectory_weights_params:
       type: double_array
       default_value: [0.0]
       description: "Coordinates of the endpoints of the poly-line."
-    w_pose:
+    w_mul:
       type: double_array
       default_value: [0.0]
-      description: "Weights for end-effector position cost."
+      description: "Multipliers for weights for end-effector position cost."
+    goal_tolerance:
+      type: double_array
+      default_value: [0.0]
+      description: "Distance to goal tolerance."
+    goal_tolerance_boost:
+      type: double
+      default_value: 1.0
+      description: "Tolerance multiplier when approaching the goal."
+    goal_weight_boost:
+      type: double
+      default_value: 1.0
+      description: "Pose weight multiplier when approaching the goal."

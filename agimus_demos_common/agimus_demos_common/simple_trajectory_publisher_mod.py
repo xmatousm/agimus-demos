@@ -1,31 +1,31 @@
 from typing import List
 import numpy as np
-from std_msgs.msg import String
 import rclpy
 from rclpy.task import Future
-from agimus_controller.trajectories.trajectory_base import TrajectoryBase
 from agimus_controller_ros.ros_utils import (
     weighted_traj_point_to_mpc_msg,
     get_param_from_node,
 )
 
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 
 from agimus_msgs.msg import MpcDebug
 
-import time
+from agimus_controller.trajectory import TrajectoryPointWeights
 
 from agimus_demos_common.trajectory_weights_parameters import (
     trajectory_weights_params,
 )
 
-from agimus_demos_common.line_cartesian_space import LineCartesianSpace
-from agimus_demos_common.line_cartesian_space_adaptive import \
-    LineCartesianSpaceAdaptive
+from agimus_demos_common.trajectories.line_cartesian_space import \
+    LineCartesianSpace
 
 from agimus_controller_ros.simple_trajectory_publisher import (
     TrajectoryPublisherBase,
 )
+
+from agimus_demos_common.trajectories.trajectory_base_mod import \
+    TrajectoryBaseMod
 
 
 class SimpleTrajectoryPublisherMod(TrajectoryPublisherBase):
@@ -51,7 +51,7 @@ class SimpleTrajectoryPublisherMod(TrajectoryPublisherBase):
             self, "agimus_controller_node", "ocp.dt_factor_n_seq.n_steps"
         ).integer_array_value
 
-        factors= get_param_from_node(
+        factors = get_param_from_node(
             self, "agimus_controller_node", "ocp.dt_factor_n_seq.factors"
         ).integer_array_value
 
@@ -60,8 +60,9 @@ class SimpleTrajectoryPublisherMod(TrajectoryPublisherBase):
             horizon_steps += factor * n_step
 
         self.get_logger().info(f"Detected horizon: {horizon_steps}")
-        self.point_delta = int(horizon_steps * 1.3) # TODO
+        self.point_delta = int(horizon_steps * 1.3)  # TODO
         self.get_logger().info(f"Used point delta: {self.point_delta}")
+        self.delay = self.point_delta * self.dt
 
         self.last_mpc_point_id = None
 
@@ -102,14 +103,19 @@ class SimpleTrajectoryPublisherMod(TrajectoryPublisherBase):
     def mpc_debug_callback(self, msg: MpcDebug):
         self.last_mpc_point_id = msg.trajectory_point_id
 
-
-    def get_trajectory(self, trajectory_name: String) -> TrajectoryBase:
+    def get_trajectory(self, trajectory_name: str) -> TrajectoryBaseMod:
         """Build the chosen trajectory."""
         if trajectory_name in ("line_cartesian_space",
-                               "line_cartesian_space_adaptive"):
+                               ):
             x = self.params.line_endpoints.x
             time = self.params.line_endpoints.time
-            w_pose = self.params.line_endpoints.w_pose
+            w_mul = self.params.line_endpoints.w_mul
+            rpy = self.params.line_endpoints.rotation
+            tol = self.params.line_endpoints.goal_tolerance
+            tol_boost = self.params.line_endpoints.goal_tolerance_boost
+            w_boost = self.params.line_endpoints.goal_weight_boost
+
+            assert len(rpy) == 3, "rotation length must be 3"
 
             assert len(x) > 0 and len(
                 x) % 3 == 0, "x length must be multiple of 3"
@@ -117,94 +123,85 @@ class SimpleTrajectoryPublisherMod(TrajectoryPublisherBase):
             assert len(
                 time) == npts + 1, "time length must be number of points + 1"
 
-            if len(w_pose) <= 1:
-                w_pose = []
+            if len(w_mul) <= 1:
+                w_mul = None
             else:
                 assert len(
-                    w_pose) == npts, "w_pose length must be number of points"
+                    w_mul) == npts, "w_mul length must be number of points"
+
+            if len(tol) <= 1:
+                tol = None
+            else:
+                assert len(
+                    tol) == npts, "goal_tolerance length must be number of points"
+
+            weights = TrajectoryPointWeights(
+                w_robot_configuration=self.get_weights(
+                    self.params.w_q, self.croco_nq),
+                w_robot_velocity=self.get_weights(
+                    self.params.w_qdot, self.croco_nq),
+                w_robot_acceleration=self.get_weights(
+                    self.params.w_qddot, self.croco_nq),
+                w_robot_effort=self.get_weights(
+                    self.params.w_robot_effort, self.croco_nq
+                ),
+                w_end_effector_poses={
+                    self.ee_frame_name: self.get_weights(self.params.w_pose, 6)
+                }
+
+            )
 
             if trajectory_name == "line_cartesian_space":
                 return LineCartesianSpace(
-                    x=x, transition_time=time, w_pose_mul=w_pose,
+                    x=x, transition_time=time, w_mul=w_mul,
                     ee_frame_name=self.ee_frame_name,
-                    w_q=self.get_weights(self.params.w_q, self.croco_nq),
-                    w_qdot=self.get_weights(self.params.w_qdot, self.croco_nq),
-                    w_qddot=self.get_weights(self.params.w_qddot, self.croco_nq),
-                    w_robot_effort=self.get_weights(
-                        self.params.w_robot_effort, self.croco_nq
-                    ),
-                    w_pose=self.get_weights(self.params.w_pose, 6)
-                )
-            else:
-                self.use_q = True
-                return LineCartesianSpaceAdaptive(
-                    x=x, transition_time=time, w_pose_mul=w_pose,
-                    ee_frame_name=self.ee_frame_name,
-                    w_q=self.get_weights(self.params.w_q, self.croco_nq),
-                    w_qdot=self.get_weights(self.params.w_qdot, self.croco_nq),
-                    w_qddot=self.get_weights(self.params.w_qddot, self.croco_nq),
-                    w_robot_effort=self.get_weights(
-                        self.params.w_robot_effort, self.croco_nq
-                    ),
-                    w_pose=self.get_weights(self.params.w_pose, 6)
+                    rotation_rpy=rpy,
+                    weights=weights,
+                    goal_tolerance=tol,
+                    goal_tolerance_boost=tol_boost,
+                    goal_weight_boost=w_boost,
+                    logger=self.get_logger(),
                 )
 
         else:
             raise ValueError("Unknown Trajectory " + trajectory_name)
 
-    def get_weights(
-            self, weights: List[np.float64], size: int
-    ) -> List[np.float64]:
+    def get_weights(self, weights: List[np.float64], size: int) -> np.ndarray:
         """
         Return weights with right size if user sent only one value, otherwise
         directly returns weights.
         """
         if len(weights) == 1:
-            return weights * size
+            return np.array(weights * size)
         else:
-            return weights
-
-
+            return np.array(weights)
 
     def publish_mpc_input(self):
-        """
-        Main function to create a dummy mpc input
-        Modifies each joint in sin manner with 0.2 rad amplitude
-        """
         if self.first_run:
             self.get_logger().info("Running.")
             self.first_run = False
             self.trajectory.initialize(self.robot_models.robot_model, self.q0)
             self.future_init_done.set_result(True)
-            self.tr0 = self.get_clock().now().nanoseconds / 1e9
-            self.t0 = time.time_ns() / 1e9
 
         delay = None
         if self.last_mpc_point_id is not None:
             delay = self._id - self.last_mpc_point_id
             if delay > self.point_delta:
-                self.get_logger().error(f"{self._id}: Input to MPC delay: {delay}; skipping one cycle.")
+                self.get_logger().error(
+                    f"{self._id}: Input to MPC delay: {delay}; skipping one cycle.")
                 return
 
-        if self.use_q:
-            w_traj_point = self.trajectory.get_traj_point_at_t(self.t,
-                                                               self.current_q)
-        else:
-            w_traj_point = self.trajectory.get_traj_point_at_t(self.t)
+        w_traj_point = self.trajectory.get_traj_point_at_tq(self.t,
+                                                            self.current_q)
         w_traj_point.point.id = self._id
         msg = weighted_traj_point_to_mpc_msg(w_traj_point)
         self._id += 1
-
-        tr = self.get_clock().now().nanoseconds / 1e9 - self.tr0
-        tt = time.time_ns() / 1e9 - self.t0
-        self.get_logger().debug(f">>> id: {w_traj_point.point.id}] " +
-                               f"real_t: {tt:.3f} ros_t: {tr:.3f} " +
-                               f"self_t: {self.t:.3f}")
 
         self.publisher_.publish(msg)
         if self.trajectory.trajectory_is_done:
             self.future_trajectory_done.set_result(True)
         self.t += self.dt
+
 
 def main(args=None):
     rclpy.init(args=args)

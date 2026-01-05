@@ -47,6 +47,9 @@ def launch_setup(
     use_mpc_debugger = LaunchConfiguration("use_mpc_debugger")
     use_mpc_debugger_str = use_mpc_debugger.perform(context)
 
+    use_mod_publisher = LaunchConfiguration("mod_publisher").perform(
+        context) == "true"
+
     use_collision_detection = (
             context.perform_substitution(ocp_choice_arg).lower()
             == "custom_with_collision_avoidance"
@@ -93,20 +96,34 @@ def launch_setup(
                       context),
                   pkg=PKG))
 
-    simple_trajectory_publisher_node = Node(
-        #package="agimus_controller_ros",
-        #executable="simple_trajectory_publisher",
-        package="agimus_demos_common",
-        executable="simple_trajectory_publisher_mod",
-        parameters=[get_use_sim_time(), trajectory_weights_yaml],
-        output="screen",
-        namespace=robot_name_str,
-        remappings=remap_to_ns(robot_name_str,
-                               "robot_description",
-                               'linear_feedback_controller/get_parameters',
-                               'agimus_controller_node/get_parameters',
-                               ),
-    )
+    if use_mod_publisher:
+        simple_trajectory_publisher_node = Node(
+            package="agimus_demos_common",
+            executable="simple_trajectory_publisher_mod",
+            parameters=[get_use_sim_time(), trajectory_weights_yaml],
+            output="screen",
+            namespace=robot_name_str,
+            remappings=remap_to_ns(robot_name_str,
+                                   "robot_description",
+                                   'linear_feedback_controller/get_parameters',
+                                   'agimus_controller_node/get_parameters',
+                                   ),
+            ros_arguments=["--log-level",
+                           "lbr.simple_trajectory_publisher:=debug"],
+        )
+    else:
+        simple_trajectory_publisher_node = Node(
+            package="agimus_controller_ros",
+            executable="simple_trajectory_publisher",
+            parameters=[get_use_sim_time(), trajectory_weights_yaml],
+            output="screen",
+            namespace=robot_name_str,
+            remappings=remap_to_ns(robot_name_str,
+                                   "robot_description",
+                                   'linear_feedback_controller/get_parameters',
+                                   'agimus_controller_node/get_parameters',
+                                   ),
+        )
 
     obstacles_config_path = path_join(
         "urdf",
@@ -203,6 +220,11 @@ def generate_args():
             "obstacles_config_file",
             default_value="obstacles_none.xacro",
             description="Obstacles definition XACRO file.",
+        ),
+        DeclareLaunchArgument(
+            "mod_publisher",
+            default_value="false",
+            description="Whether to use modified trajectory publisher.",
         ),
     ]
 
