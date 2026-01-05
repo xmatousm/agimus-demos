@@ -4,10 +4,7 @@ from launch.actions import (
     RegisterEventHandler,
     TimerAction,
     DeclareLaunchArgument,
-    EmitEvent,
 )
-
-from launch.events import (Shutdown)
 
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
@@ -21,9 +18,9 @@ from agimus_demos_common.launch_utils_kuka import (
     parameter_value_xacro,
     path_join,
     include_path_join,
-    LogError,
     wait_for_non_zero_joints_run,
     remap_to_ns,
+    required_node,
 )
 from agimus_demos_common.static_transform_publisher_node import (
     static_transform_publisher_node,
@@ -138,7 +135,8 @@ def launch_setup(
         cost_plot=use_mpc_debugger_str == 'full',
         node_kwargs=dict(
             remappings=[
-                ("/robot_description", f"/{robot_name_str}/robot_description_with_collision"),
+                ("/robot_description",
+                 f"/{robot_name_str}/robot_description_with_collision"),
                 *remap_to_ns(robot_name_str,
                              "environment_description",
                              'linear_feedback_controller/get_parameters',
@@ -151,13 +149,6 @@ def launch_setup(
         ),
     )
 
-    mpc_debugger_required = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=mpc_debugger,
-            on_exit=[
-                LogError(msg="MPC debugger exited."),
-                EmitEvent(event=Shutdown())]))
-
     return [
         kuka_robot_launch,
         *wait_for_non_zero_joints_run(robot_name_str,
@@ -165,8 +156,7 @@ def launch_setup(
                                        environment_publisher_node]
                                       ),
         tf_node,
-        mpc_debugger,
-        mpc_debugger_required,
+        *required_node(mpc_debugger),
         RegisterEventHandler(
             event_handler=OnProcessStart(
                 target_action=agimus_controller_node,
@@ -176,6 +166,7 @@ def launch_setup(
                 ),
             )
         ),
+        required_node(simple_trajectory_publisher_node)[1]
     ]
 
 

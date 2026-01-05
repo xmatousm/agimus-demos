@@ -4,13 +4,13 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, \
 from launch.substitution import Substitution
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
-from launch.frontend import expose_action
-from launch.launch_context import LaunchContext
-from launch.actions import LogInfo, RegisterEventHandler
+from launch.actions import RegisterEventHandler, EmitEvent
+from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.event_handlers import OnProcessExit
-from launch import LaunchDescription, LaunchDescriptionEntity
+from launch import LaunchDescriptionEntity
+from agimus_demos_common.log_error import LogError
 
 
 def path_join(*items: str | Substitution,
@@ -133,6 +133,7 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
         ),
     ]
 
+
 def get_use_sim_time() -> dict[str, LaunchConfiguration]:
     """Helper function creating action setting param `use_sim_time`.
 
@@ -203,18 +204,6 @@ def include_path_join(*items: str, pkg: str = "agimus_demos_common",
         launch_arguments=args.items())
 
 
-@expose_action('log_error')
-class LogError(LogInfo):
-    """Action that logs an error message when executed."""
-
-    def execute(self, context: LaunchContext) -> None:
-        """Execute the action."""
-        self.__logger.error(
-            ''.join([context.perform_substitution(sub) for sub in self.msg])
-        )
-        return None
-
-
 class WaitForNonZeroJointsNode(Node):
     def __init__(self, robot_name_str):
         super().__init__(
@@ -238,5 +227,21 @@ def wait_for_non_zero_joints_run(robot_name_str: str,
     )
     return wait_for_non_zero_joints_node, handler
 
+
 def remap_to_ns(ns, *items: str):
-    return [ (f"/{item}", f"/{ns}/{item}") for item in items]
+    return [(f"/{item}", f"/{ns}/{item}") for item in items]
+
+
+def required_node(node: Node) -> tuple[Node, RegisterEventHandler]:
+    """Helper function to register an event handler to log an error if a
+     required node exits.
+     :returns: A tuple of the original node and the event handler.
+     """
+    handler = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=node,
+            on_exit=[
+                LogError(msg=f"Required node exited."),
+                EmitEvent(event=Shutdown())]))
+
+    return node, handler
