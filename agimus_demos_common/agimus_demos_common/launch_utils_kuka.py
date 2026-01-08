@@ -1,3 +1,4 @@
+from typing import Optional
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, \
     Command, FindExecutable, PythonExpression
@@ -9,7 +10,7 @@ from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.event_handlers import OnProcessExit
-from launch import LaunchDescriptionEntity
+from launch import LaunchDescriptionEntity, LaunchContext
 from agimus_demos_common.log_error import LogError
 
 
@@ -18,6 +19,28 @@ def path_join(*items: str | Substitution,
     """Join items into a path to a package share."""
     return PathJoinSubstitution(
         [FindPackageShare(pkg), *items])
+
+
+class SetupContext:
+    def __init__(self, context: LaunchContext, pkg: str):
+        self.context = context
+        self.pkg = pkg
+
+    def config(self, name: str) -> str:
+        return LaunchConfiguration(name).perform(self.context)
+
+    def config_bool(self, name: str) -> bool:
+        return LaunchConfiguration(name).perform(self.context).lower() == "true"
+
+    def config_path(self, *items: str, pkg: Optional[str] = None
+                    ) -> Substitution:
+        if pkg is None:
+            pkg = self.pkg
+
+        return path_join(
+            *items[:-1],
+            LaunchConfiguration(items[-1]).perform(self.context),
+            pkg=pkg)
 
 
 def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
@@ -134,6 +157,38 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
     ]
 
 
+def generate_mpc_args():
+    return [
+        DeclareLaunchArgument(
+            "use_mpc_debugger",
+            default_value="false",
+            description="Launches the mpc_debugger_node along.",
+            choices=["false", "markers", "full"],
+        ),
+        DeclareLaunchArgument(
+            "ocp",
+            default_value="custom_with_collision_avoidance",
+            description="The ocp to use. Either the default one or the one from this package that does collision avoidance.",
+            choices=["default_ocp", "custom_with_collision_avoidance"]
+        ),
+        DeclareLaunchArgument(
+            "ocp_definition_file",
+            default_value="ocp_definition_file.yaml",
+            description="OCP configuration YAML file.",
+        ),
+        DeclareLaunchArgument(
+            "controller_config_file",
+            default_value="agimus_controller_params.yaml",
+            description="Agimus controller configuration YAML file.",
+        ),
+        DeclareLaunchArgument(
+            "obstacles_config_file",
+            default_value="obstacles_none.xacro",
+            description="Obstacles definition XACRO file.",
+        ),
+    ]
+
+
 def get_use_sim_time() -> dict[str, LaunchConfiguration]:
     """Helper function creating action setting param `use_sim_time`.
 
@@ -168,12 +223,6 @@ def parameter_value_xacro(
         ),
         value_type=str,
     )
-
-
-def path_join(*items: str, pkg: str = "agimus_demos_common") -> Substitution:
-    """Join items into a path to a package share."""
-    return PathJoinSubstitution(
-        [FindPackageShare(pkg), *items])
 
 
 def include_path_join(*items: str, pkg: str = "agimus_demos_common",
