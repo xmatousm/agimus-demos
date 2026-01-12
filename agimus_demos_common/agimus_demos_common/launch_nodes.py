@@ -1,3 +1,4 @@
+from typing import Optional
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch.substitutions import PythonExpression
@@ -69,7 +70,12 @@ def mpc_debugger(robot_name: str, use_mpc_debugger: str) -> Node:
 
 
 def agimus_controller(robot_name: str, agimus_controller_yaml: Substitution,
-                      extra_params) -> Node:
+                      ocp_definition_file: Optional[Substitution] = None
+                      ) -> Node:
+    extra_params = {}
+    if ocp_definition_file is not None:
+        extra_params["ocp"] = {'definition_yaml_file': ocp_definition_file}
+
     return Node(
         package="agimus_controller_ros",
         executable="agimus_controller_node",

@@ -43,25 +43,12 @@ def launch_setup(
         return [kuka_robot_launch]
 
     robot_name = ctx.config("robot_name")
-
-    use_collision_detection = (
-            ctx.config("ocp") == "custom_with_collision_avoidance")
-
     use_mpc_debugger = ctx.config("use_mpc_debugger")
-
     agimus_controller_yaml = ctx.config_path("config", "controller_config_file")
-
-    if use_collision_detection:
-        ocp_definition_file = ctx.config_path("config", "ocp_definition_file")
-
-        extra_params = {
-            "ocp": {"definition_yaml_file": ocp_definition_file}
-        }
-    else:
-        extra_params = {}
+    ocp_definition_file = ctx.config_path("config", "ocp_definition_file")
 
     agimus_controller_node = nodes.agimus_controller(
-        robot_name, agimus_controller_yaml, extra_params)
+        robot_name, agimus_controller_yaml, ocp_definition_file)
 
     trajectory_weights_yaml = ctx.config_path(
         "config", "trajectory_config_file")

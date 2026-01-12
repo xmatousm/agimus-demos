@@ -166,12 +166,6 @@ def generate_mpc_args():
             choices=["false", "markers", "full"],
         ),
         DeclareLaunchArgument(
-            "ocp",
-            default_value="custom_with_collision_avoidance",
-            description="The ocp to use. Either the default one or the one from this package that does collision avoidance.",
-            choices=["default_ocp", "custom_with_collision_avoidance"]
-        ),
-        DeclareLaunchArgument(
             "ocp_definition_file",
             default_value="ocp_definition_file.yaml",
             description="OCP configuration YAML file.",
