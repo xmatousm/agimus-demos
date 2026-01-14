@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot name="tool_sharp_tip" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find agimus_description)/urdf/_materials.urdf.xacro" />
+
+  <xacro:macro name="tool_knife" params="parent name:=knife">
+
+    <!-- Dummy links for visuals only. -->
+    <joint name="${name}_holder_base_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 1.5708"/>
+      <parent link="${parent}"/>
+      <child link="${name}_holder_base" />
+    </joint>
+
+    <joint name="${name}_holder_knife_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 1.5708"/>
+      <parent link="${parent}"/>
+      <child link="${name}_holder_knife"/>
+    </joint>
+
+    <link name="${name}_holder_base">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://agimus_description/meshes/holder2-base.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+        <material name="orange"/>
+      </visual>
+    </link>
+
+    <link name="${name}_holder_knife">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://agimus_description/meshes/holder2-knife.stl" scale="0.001 0.001 0.001" />
+        </geometry>
+        <material name="yellow"/>
+      </visual>
+    </link>
+
+    <!-- Actual tool transformation. -->
+    <joint name="${name}_joint" type="fixed">
+      <origin xyz="0 0 0.09" rpy="0 0 0"/>
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+    </joint>
+
+    <link name="${name}"/>
+
+  </xacro:macro>
+</robot>

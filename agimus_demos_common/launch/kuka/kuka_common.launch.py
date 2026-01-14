@@ -34,6 +34,7 @@ def launch_setup(
     ctx = SetupContext(context)
 
     arm_id = ctx.config("arm_id")
+    tool_id = ctx.config("tool_id")
     rviz_config_path = LaunchConfiguration("rviz_config_path")
 
     use_rviz_bool = ctx.config_bool("use_rviz")
@@ -139,7 +140,8 @@ def launch_setup(
             xacro_args["controller_params_path"] = external_controllers_params
 
         robot_description_file_substitution = path_join(
-            "urdf", f"{arm_id}.xacro", pkg="agimus_description")
+            "urdf", f"{arm_id}{'' if tool_id == '' else '_'}{tool_id}.xacro",
+            pkg="agimus_description")
 
         robot_description = parameter_value_xacro(
             robot_description_file_substitution, xacro_args)

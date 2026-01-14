@@ -60,6 +60,13 @@ def generate_default_kuka_args() -> list[DeclareLaunchArgument]:
             description="ID of the type of arm used. Supported values: iiwa7",
             choices=["iiwa7"],
         ),
+
+        DeclareLaunchArgument(
+            "tool_id",
+            default_value="",
+            description="ID of the tool mounted on the arm",
+        ),
+
         DeclareLaunchArgument(
             "robot_name",
             default_value="lbr",
