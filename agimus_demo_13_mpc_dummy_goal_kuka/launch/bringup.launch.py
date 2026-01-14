@@ -78,10 +78,8 @@ def launch_setup(
 
     return [
         kuka_robot_launch,
-        *wait_for_non_zero_joints_run(robot_name,
-                                      [agimus_controller_node,
-                                       environment_publisher_node]
-                                      ),
+        agimus_controller_node,
+        environment_publisher_node,
         tf_node,
         *required_node(mpc_debugger),
         *required_node(simple_trajectory_goal_publisher_node),
