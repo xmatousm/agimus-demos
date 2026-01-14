@@ -22,7 +22,7 @@ from agimus_demos_common.launch_utils_kuka import (
     parameter_value_xacro,
     path_join,
     include_path_join,
-    wait_for_non_zero_joints_run,
+    SetupContext,
 )
 
 import launch.logging
@@ -31,40 +31,23 @@ import launch.logging
 def launch_setup(
         context: LaunchContext, *args, **kwargs
 ) -> list[LaunchDescriptionEntity]:
-    arm_id = LaunchConfiguration("arm_id")
-    robot_name = LaunchConfiguration("robot_name")
-    external_controllers_params = LaunchConfiguration(
-        "external_controllers_params")
-    external_controllers_names = LaunchConfiguration(
-        "external_controllers_names")
+    ctx = SetupContext(context)
+
+    arm_id = ctx.config("arm_id")
     rviz_config_path = LaunchConfiguration("rviz_config_path")
-    joint_limits_config_path = LaunchConfiguration("joint_limits_config_path")
-    system_config_path = LaunchConfiguration("system_config_path")
-    initial_joint_positions_path = LaunchConfiguration("initial_joint_positions_path")
 
-    use_rviz_bool = context.perform_substitution(
-        LaunchConfiguration("use_rviz")).lower() == "true"
-    use_gazebo_bool = context.perform_substitution(
-        LaunchConfiguration("use_gazebo")).lower() == "true"
-    use_aux_bool = context.perform_substitution(
-        LaunchConfiguration("use_aux")).lower() == "true"
-    on_aux_bool = context.perform_substitution(
-        LaunchConfiguration("on_aux")).lower() == "true"
-    robot_name_str = context.perform_substitution(robot_name)
-
-    external_controllers_params_str = context.perform_substitution(
-        external_controllers_params
-    )
+    use_rviz_bool = ctx.config_bool("use_rviz")
+    use_gazebo_bool = ctx.config_bool("use_gazebo")
+    use_aux_bool = ctx.config_bool("use_aux")
+    on_aux_bool = ctx.config_bool("on_aux")
+    robot_name_str = ctx.config("robot_name")
 
     if on_aux_bool and use_aux_bool:
         raise RuntimeError(
             "Cannot use both use_aux and on_aux at the same time.")
 
-    external_controllers_names_str = context.perform_substitution(
-        external_controllers_names)
-    external_controllers_names_list = ast.literal_eval(
-        context.perform_substitution(external_controllers_names)
-    )
+    external_controllers_names = ctx.config("external_controllers_names")
+    external_controllers_params = ctx.config("external_controllers_params")
 
     logger = launch.logging.get_logger(__name__)
 
@@ -77,29 +60,30 @@ def launch_setup(
 
     logger.info(f'GAZEBO: {use_gazebo_bool}')
     logger.info(f'ROBOT NAME: {robot_name_str}')
-    logger.info(f'EXTERNAL CONTROLLERS: {external_controllers_names_list}')
+    logger.info(f'EXTERNAL CONTROLLERS: {external_controllers_names}')
 
     launch_config: list[LaunchDescriptionEntity] = []
 
     if not use_aux_bool:  # full launch or aux launch
         # gazebo or hardware launch
         if use_gazebo_bool:
-            launch_config.append(
-                include_path_join("launch", "kuka",
-                                  "kuka_simulation.launch.py"))
+            launch_config += [include_path_join("launch", "kuka",
+                                                "kuka_simulation.launch.py")]
 
         else:
-            launch_config.append(
-                include_path_join("launch", "kuka",
-                                  "kuka_hardware.launch.py"))
+            launch_config += [include_path_join("launch", "kuka",
+                                                "kuka_hardware.launch.py")]
 
         # switch to external controllers if any
-        if external_controllers_names_str != "":
+        if external_controllers_names != "":
+            external_controllers_names_list = ast.literal_eval(
+                external_controllers_names)
+
             spawn_external_controllers = generate_controllers_spawner_launch_description(
                 deepcopy(external_controllers_names_list),
                 controller_params_files=(
-                    [external_controllers_params_str]
-                    if external_controllers_params_str != ""
+                    [external_controllers_params]
+                    if external_controllers_params != ""
                     else None
                 ),
 
@@ -125,10 +109,6 @@ def launch_setup(
                 output="screen",
             )
 
-            launch_config += wait_for_non_zero_joints_run(
-                robot_name_str,[spawn_external_controllers]
-            )
-
             activate_external_controllers_on_exit_event = RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=spawn_external_controllers.entities[2],
@@ -136,28 +116,30 @@ def launch_setup(
                 )
             )
 
-            launch_config.append(activate_external_controllers_on_exit_event)
+            launch_config += [
+                spawn_external_controllers,
+                activate_external_controllers_on_exit_event
+            ]
 
     if not on_aux_bool:  # full launch or using aux launch
-        system_config_file = system_config_path.perform(context)
-        joint_limits_file = joint_limits_config_path.perform(context)
-        initial_joint_positions_file = initial_joint_positions_path.perform(context)
+        system_config_file = ctx.config("system_config_path")
+        joint_limits_file = ctx.config("joint_limits_config_path")
+        initial_joint_positions_file = ctx.config(
+            "initial_joint_positions_path")
 
-        arm_id_str = context.perform_substitution(arm_id)
         xacro_args = {
-            "robot_name": robot_name,
+            "robot_name": robot_name_str,
             "mode": "gazebo" if use_gazebo_bool else "hardware",
             "system_config_path": system_config_file,
             "joint_limits_path": joint_limits_file,
             "initial_joint_positions_path": initial_joint_positions_file,
         }
 
-        if external_controllers_params_str != "":
-            xacro_args[
-                "controller_params_path"] = external_controllers_params_str
+        if external_controllers_params != "":
+            xacro_args["controller_params_path"] = external_controllers_params
 
         robot_description_file_substitution = path_join(
-            "urdf", f"{arm_id_str}.xacro", pkg="agimus_description")
+            "urdf", f"{arm_id}.xacro", pkg="agimus_description")
 
         robot_description = parameter_value_xacro(
             robot_description_file_substitution, xacro_args)
@@ -210,7 +192,7 @@ def launch_setup(
         )
 
         srdf_file_substitution = path_join(
-            "config", f"{arm_id_str}.srdf", pkg=f"{arm_id_str}_moveit_config")
+            "config", f"{arm_id}.srdf", pkg=f"{arm_id}_moveit_config")
         srdf_file = srdf_file_substitution.perform(context)
         with open(srdf_file, "r") as f:
             robot_srdf_description = f.read()
@@ -235,14 +217,14 @@ def launch_setup(
             robot_srdf_publisher_node,
         ]
 
-        if use_rviz_bool and not on_aux_bool:
-            # aux launch does not run rviz
-            launch_config.append(
+        if use_rviz_bool:
+            launch_config += [
                 Node(
                     package="rviz2",
                     executable="rviz2",
                     parameters=[get_use_sim_time()],
-                    arguments=["--display-config", rviz_config_path]))
+                    arguments=["--display-config", rviz_config_path])
+            ]
 
     return launch_config
 

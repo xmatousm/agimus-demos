@@ -22,7 +22,8 @@ def path_join(*items: str | Substitution,
 
 
 class SetupContext:
-    def __init__(self, context: LaunchContext, pkg: str):
+    def __init__(self, context: LaunchContext,
+                 pkg: str = "agimus_demos_common"):
         self.context = context
         self.pkg = pkg
 
@@ -284,7 +285,7 @@ def required_node(node: Node) -> tuple[Node, RegisterEventHandler]:
         event_handler=OnProcessExit(
             target_action=node,
             on_exit=[
-                LogError(msg=f"Required node exited."),
+                LogError(msg=f"Required node exited: {node.node_package}/{node.node_executable}"),
                 EmitEvent(event=Shutdown())]))
 
     return node, handler
