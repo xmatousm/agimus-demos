@@ -8,7 +8,7 @@ repositories:
   vcs_agimus/linear-feedback-controller:
     type: git
     url: https://github.com/loco-3d/linear-feedback-controller
-    version: main
+    version: 339e7886
 
   vcs_agimus/linear_feedback_controller_msgs:
     type: git
@@ -17,15 +17,15 @@ repositories:
 
   vcs_agimus/agimus_controller:
     type: git
-    url: https://github.com/agimus-project/agimus_controller
-    version: humble-devel
+    url: https://github.com/xmatousm/agimus_controller
+    version: humble-kuka
 
   vcs_agimus/agimus_msgs:
     type: git
     url: https://github.com/agimus-project/agimus_msgs
-    version: humble-devel
+    version: e8e48c8c
 
   vcs_agimus/agimus_pytroller:
     type: git
     url: https://github.com/agimus-project/agimus_pytroller
-    version: main
+    version: a4511709
