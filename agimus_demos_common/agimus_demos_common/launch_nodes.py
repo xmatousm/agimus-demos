@@ -92,3 +92,43 @@ def agimus_controller(robot_name: str, agimus_controller_yaml: Substitution,
                                ),
         namespace=robot_name,
     )
+
+
+def camera(cardboard_yaml: Substitution, calib_file: Substitution,
+           simulate_file: Optional[Substitution] = None,
+           debug: bool = None) -> Node:
+    return Node(
+        package="agimus_cardboard",
+        executable="camera",
+        parameters=[get_use_sim_time(), cardboard_yaml],
+        arguments=["--calib-file", calib_file] +
+                  (["--simulate-file", simulate_file]
+                   if simulate_file is not None else []) +
+                  (["--ros-args", "--log-level", "camera:=debug"]
+                   if debug else []),
+        output="screen",
+    )
+
+
+def detector(cardboard_yaml: Substitution,
+             template_file: Substitution,
+             robot_calib_file: Optional[Substitution] = None,
+             calib_file: Optional[Substitution] = None,
+             simulate_file: Optional[Substitution] = None,
+             debug: bool = False
+             ) -> Node:
+    return Node(
+        package="agimus_cardboard",
+        executable="detector",
+        parameters=[get_use_sim_time(), cardboard_yaml],
+        arguments=["--template-file", template_file] +
+                  (["--robot-calib-file", robot_calib_file]
+                   if robot_calib_file is not None else []) +
+                  (["--calib-file", calib_file]
+                   if calib_file is not None else []) +
+                  (["--simulate-file", simulate_file]
+                   if simulate_file is not None else []) +
+                  (["--ros-args", "--log-level", "detector:=debug"]
+                   if debug else []),
+        output="screen",
+    )

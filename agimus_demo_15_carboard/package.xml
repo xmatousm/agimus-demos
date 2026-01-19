@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>agimus_demo_15_cardboard</name>
+  <version>0.0.0</version>
+  <description>TODO</description>
+  <maintainer email="martin.matousek@cvut.cz">Martin Matousek</maintainer>
+  <author>Martin Matousek</author>
+
+  <license>BSD-2</license>
+  <url type="website">https://www.agimus-project.eu/</url>
+  <url type="repository">https://github.com/agimus-project/agimus-demos</url>
+  <url type="bugtracker">https://github.com/agimus-project/agimus-demos/issues</url>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <exec_depend>agimus_demos_common</exec_depend>
+  <exec_depend>agimus_controller_ros</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
