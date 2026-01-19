@@ -108,7 +108,10 @@ class LineSegmentCartesianSpace(TrajectorySegment):
                 # no goal tolerance, the segment is finished based on time only
                 self.running = False
 
-        alpha = min((t - self.t_from) / self.duration, 1.0)
+        if self.duration > 0.0:
+            alpha = min((t - self.t_from) / self.duration, 1.0)
+        else:
+            alpha = 1.0
 
         point = self.interpolate_weighted_point(alpha, alpha)
         self.last_t = t

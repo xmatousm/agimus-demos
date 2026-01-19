@@ -60,7 +60,7 @@ class TrajectorySegment(TrajectoryBaseMod, ABC):
                     r_from: np.ndarray,
                     r_to: np.ndarray,
                     duration: Optional[float] = None,
-                    velocity: Optional[np.ndarray] = None,
+                    velocity: Optional[float] = None,
                     weights: Optional[TrajectoryPointWeights] = None,
                     w_pose_from: Optional[np.ndarray] = None,
                     w_pose_to: Optional[np.ndarray] = None,
@@ -78,8 +78,18 @@ class TrajectorySegment(TrajectoryBaseMod, ABC):
         self.duration = duration
         self.velocity = velocity
 
+        # compute the duration from the velocity and the distance
+        if self.duration is None:
+            assert self.velocity is not None and self.velocity > 0.0
+            self.duration = np.linalg.norm(self.x_delta) / self.velocity
+
+        # compute the velocity from the duration and the distance
+        if self.velocity is None:
+            assert self.duration is not None and self.duration > 0.0
+            self.velocity = np.linalg.norm(self.x_delta) / self.duration
+
         self.t_from = t
-        self.t_to = t + duration if duration is not None else None
+        self.t_to = t + self.duration
 
         self.w_pose_from = w_pose_from
         self.w_pose_to = w_pose_to
