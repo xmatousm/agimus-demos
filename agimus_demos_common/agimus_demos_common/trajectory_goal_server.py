@@ -24,6 +24,9 @@ from agimus_controller_ros.ros_utils import (
 from agimus_demos_common.trajectories.line_segment_cartesian_space import \
     LineSegmentCartesianSpace
 
+from agimus_demos_common.trajectories.saw_line_segment_cartesian_space import \
+    SawLineSegmentCartesianSpace
+
 from agimus_controller.trajectory import TrajectoryPointWeights
 
 class TrajectoryGoalServer(TrajectoryPublisherBase):
@@ -128,7 +131,7 @@ class TrajectoryGoalServer(TrajectoryPublisherBase):
 
         g = goal.goal
 
-        self.get_logger().info(f'Executing goal {g.id} ({g.duration}s)')
+        self.get_logger().info(f'Executing goal {g.trajectory_type} {g.id} ({g.duration}s)')
 
         weights = TrajectoryPointWeights(
             w_robot_configuration=np.array(g.w_q),
@@ -139,12 +142,21 @@ class TrajectoryGoalServer(TrajectoryPublisherBase):
                 g.frame_name: np.array(g.w_pose),
             })
 
-        trajectory = LineSegmentCartesianSpace(g.frame_name)
+        if g.trajectory_type == 'saw_line_cartesian_space':
+            trajectory = SawLineSegmentCartesianSpace(g.frame_name)
+            assert g.s1 > 0.0
+            assert len(g.v1) == 3
+            trajectory.tooth_length = g.s1
+            trajectory.tooth_tip = np.array(g.v1)
+
+        else:
+            trajectory = LineSegmentCartesianSpace(g.frame_name)
+            trajectory.goal_weight_boost = g.goal_weight_boost
+            trajectory.goal_tolerance_boost = g.goal_tolerance_boost
+
+
         trajectory.initialize(self.robot_models.robot_model, self.q0)
         trajectory.initialize_w(weights)
-        trajectory.goal_weight_boost = g.goal_weight_boost
-        trajectory.goal_tolerance_boost = g.goal_tolerance_boost
-
         rotation = pin.rpy.rpyToMatrix(
                 g.rot_rpy[0], g.rot_rpy[1], g.rot_rpy[2])
 
@@ -159,7 +171,8 @@ class TrajectoryGoalServer(TrajectoryPublisherBase):
             x_to=np.array(g.pose),
             r_from=self.last_r_from,
             r_to=rotation,
-            duration=g.duration,
+            duration=g.duration if g.duration > 0.0 else None,
+            velocity=g.speed if g.speed > 0.0 else None,
             w_pose_from=self.last_w_pose, w_pose_to=np.array(g.w_pose),
         )
 

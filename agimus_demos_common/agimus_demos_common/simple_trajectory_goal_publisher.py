@@ -24,13 +24,39 @@ class SimpleTrajectoryGoalPublisher(Node):
         self.params = self.param_listener.get_params()
         self._id: int = -1
         self.croco_nq = 7
-        self.future_init_done = Future()
-        self.future_trajectory_done = Future()
+        self.point = -1
 
-        self.croco_nq = 7
+        # general parameters
+        self.ee_frame_name = self.params.ee_frame_name
+
+        self.w_q = self.get_weights(self.params.w_q, self.croco_nq)
+        self.w_qdot = self.get_weights(self.params.w_qdot, self.croco_nq)
+        self.w_qddot = self.get_weights(self.params.w_qddot, self.croco_nq)
+        self.w_robot_effort = self.get_weights(
+            self.params.w_robot_effort, self.croco_nq
+        )
+        self.w_pose = self.get_weights(self.params.w_pose, 6)
+
+        self.trajectory_name = self.params.trajectory_name
         # trajectory parameters
-        assert self.params.trajectory_name == 'line_cartesian_space'
+        if self.trajectory_name == 'line_cartesian_space':
+            self._init_line_params()
+        elif self.trajectory_name == 'saw_line_cartesian_space':
+            self._init_line_params()
+            tooth_length = self.params.saw.tooth_length
+            tooth_tip = self.params.saw.tooth_tip
 
+            assert len(tooth_tip) == 3, "tooth tip length must be 3"
+            assert tooth_length > 0.0, "tooth length must be positive"
+
+            self.tooth_length = tooth_length
+            self.tooth_tip = tooth_tip
+
+        else:
+            raise ValueError(
+                f"Trajectory {self.params.trajectory_name} not supported")
+
+    def _init_line_params(self):
         x = self.params.line_endpoints.x
         time = self.params.line_endpoints.time
         w_mul = self.params.line_endpoints.w_mul
@@ -63,15 +89,6 @@ class SimpleTrajectoryGoalPublisher(Node):
         self.tol = tol
         self.tol_boost = self.params.line_endpoints.goal_tolerance_boost
         self.w_boost = self.params.line_endpoints.goal_weight_boost
-        self.ee_frame_name = self.params.ee_frame_name
-        self.w_q = self.get_weights(self.params.w_q, self.croco_nq)
-        self.w_qdot = self.get_weights(self.params.w_qdot, self.croco_nq)
-        self.w_qddot = self.get_weights(self.params.w_qddot, self.croco_nq)
-        self.w_robot_effort = self.get_weights(
-            self.params.w_robot_effort, self.croco_nq
-        )
-        self.w_pose = self.get_weights(self.params.w_pose, 6)
-        self.point = -1
 
     def get_weights(
             self, weights: List[float], size: int
@@ -91,6 +108,11 @@ class SimpleTrajectoryGoalPublisher(Node):
         g = goal.goal
         g.id = self._id
         g.frame_name = self.ee_frame_name
+        g.trajectory_type = self.trajectory_name
+        if self.trajectory_name == 'saw_line_cartesian_space':
+            g.s1 = self.tooth_length
+            g.v1 = self.tooth_tip
+
         g.w_q = self.w_q
         g.w_qdot = self.w_qdot
         g.w_qddot = self.w_qddot
@@ -108,9 +130,10 @@ class SimpleTrajectoryGoalPublisher(Node):
             g.min_distance = 0.0
 
         else:
+            point_from = self.point
             self.point = (self.point + 1) % self.npts
             g.rot_rpy = self.rotation
-            g.duration = self.transition_time[self.point]
+            g.duration = self.transition_time[point_from + 1]
             g.pose = self.x[self.point * 3:self.point * 3 + 3]
             goal.goal.w_pose = [w * self.w_pose_mul[self.point]
                                 for w in self.w_pose]

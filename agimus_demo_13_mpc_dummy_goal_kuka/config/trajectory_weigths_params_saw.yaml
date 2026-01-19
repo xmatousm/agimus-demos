@@ -1,0 +1,28 @@
+---
+/**/simple_trajectory_goal_publisher:
+  ros__parameters:
+    ee_frame_name: lbr_link_tool
+
+    trajectory_name: saw_line_cartesian_space
+    w_q: [ 2.0 ]
+    w_qdot: [ 0.5 ]
+    w_qddot: [ 0.000001 ]
+    w_robot_effort: [ 0.0008 ]
+    w_pose: [ 2000.0 ]
+    line_endpoints:
+      rotation: [ 0.0, 3.1415, 0.0 ]
+
+      time: [
+        4.0,
+        10.0,
+        10.0,
+      ]
+
+      x: [
+        0.5, 0.2, 0.30,
+        0.5, -0.2, 0.30,
+      ]
+
+    saw:
+      tooth_tip: [0.0, 0.0, 0.01]
+      tooth_length: 0.05

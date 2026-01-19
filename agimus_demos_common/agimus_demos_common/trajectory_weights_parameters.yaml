@@ -15,6 +15,7 @@ trajectory_weights_params:
             "generic_visual_servoing_trajectory",
             "line_cartesian_space",
             "line_cartesian_space_adaptive",
+            "saw_line_cartesian_space",
           ],
         ]
   mask:
@@ -114,3 +115,13 @@ trajectory_weights_params:
       type: double
       default_value: 1.0
       description: "Pose weight multiplier when approaching the goal."
+  saw:
+    tooth_length:
+      type: double
+      default_value: 0.0
+      description: "Length of one saw tooth along the line."
+    tooth_tip:
+      type: double_array
+      default_value: [0.0]
+      description: "Size and direction of the saw tooth leading edge."
+
