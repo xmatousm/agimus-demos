@@ -83,7 +83,7 @@ class LineSegmentCartesianSpace(TrajectorySegment):
         # optionally boost weights when approaching the goal
         if self.goal_tolerance is not None:
             curr_pos = self.get_end_effector_pose_from_q_as_se3(q).translation
-            dist_to_goal = np.sqrt(np.sum(self.x_to - curr_pos) ** 2)
+            dist_to_goal = np.sqrt(np.sum((self.x_to - curr_pos) ** 2))
 
             # when we are near the goal than the tolerance * tolerance_boost,
             # multiply the weights linearly between 1.0 and goal_weight_boost
