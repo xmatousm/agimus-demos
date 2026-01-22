@@ -1,9 +1,9 @@
 ---
 /**/hole_planner:
   ros__parameters:
-    delta_z: 0.05
-    init_pose: [0.3, 0.3, 0.3]
-    speed: 0.2
+    delta_z: 0.08
+    init_pose: [0.4, 0.3, 0.3]
+    speed: 0.15
     speed_hole: 0.05
 
     ee_frame_name: "lbr_link_tool"
@@ -14,13 +14,17 @@
     w_robot_effort: [0.0008]
     w_pose: [200.0]
     w_pose_prepare: [1000.0]
-    w_pose_hole: [2000.0]
+    w_pose_hole: [3000.0]
 
     goal_tolerance: 0.05
     goal_tolerance_boost: 2.0
-    goal_weight_boost: 3.0
+    goal_weight_boost: 5.0
     goal_tolerance_prepare: 0.01
 
+    x_min: 0.45
+    x_max: 0.7
+    y_min: -0.3
+    y_max: 0.3
 
 
 #[0.6, 0.4, 0.0, -1.75, 0.0, 0.95, 0.0]
