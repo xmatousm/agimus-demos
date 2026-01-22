@@ -79,14 +79,19 @@ class TrajectorySegment(TrajectoryBaseMod, ABC):
         self.velocity = velocity
 
         # compute the duration from the velocity and the distance
-        if self.duration is None:
-            assert self.velocity is not None and self.velocity > 0.0
-            self.duration = np.linalg.norm(self.x_delta) / self.velocity
+        vel_duration = None
+        if self.velocity is not None and self.velocity > 0.0:
+            vel_duration = np.linalg.norm(self.x_delta) / self.velocity
 
-        # compute the velocity from the duration and the distance
-        if self.velocity is None:
-            assert self.duration is not None and self.duration > 0.0
-            self.velocity = np.linalg.norm(self.x_delta) / self.duration
+        if self.duration is None:
+            assert vel_duration is not None
+            self.duration = vel_duration
+        elif vel_duration is not None:
+            # use the maximum of the two durations
+            self.duration = max(self.duration, vel_duration)
+
+        # (re)compute the velocity from the duration and the distance
+        self.velocity = np.linalg.norm(self.x_delta) / self.duration
 
         self.t_from = t
         self.t_to = t + self.duration
