@@ -21,6 +21,12 @@
     goal_weight_boost: 5.0
     goal_tolerance_prepare: 0.01
 
+    saw_length: 0.02
+    saw_height: 0.03
+
+    saw_begin: 0.01
+    saw_end: 0.02
+
     x_min: 0.45
     x_max: 0.7
     y_min: -0.3
